@@ -11,16 +11,21 @@ const moment = require("moment");
 //start workout
 const startWorkOut = async (req, res) => {
   try {
-    const { programId, weekNumber } = req.params;
+    const { workOutId } = req.params;
+
+    // Query using the dot notation to access nested arrays properly
     const currentProgram = await Program.findOne(
       {
-        _id: new mongoose.Types.ObjectId(programId),
-        "weeks.weekNumber": parseInt(weekNumber),
+        "weeks.workouts._id": workOutId,
       },
       {
-        "weeks.$": 1, // returns the data for the specific week
+        "weeks.$": 1,
       }
     );
+
+    if (!currentProgram) {
+      return res.status(404).json({ msg: "Program not found" });
+    }
 
     res.status(200).json(currentProgram);
   } catch (error) {
@@ -35,11 +40,11 @@ const startWorkOut = async (req, res) => {
 =============================================*/
 
 const finishWorkOut = async (req, res) => {
-  const { userId, programId, weekNumber, workOutId, stations } = req.body;
+  const { programId, weekNumber, workOutId, stations } = req.body;
 
   try {
     await WorkOutLog.create({
-      userId,
+      userId: req.user._id,
       workOutId,
       programId,
       weekNumber,
@@ -49,7 +54,7 @@ const finishWorkOut = async (req, res) => {
     });
     res.status(201).json({ msg: "workOut completed successfully" });
   } catch (error) {
-    res.json({ msg: "failed to finish workout" });
+    res.json({ msg: "failed to finish workout", error: error });
   }
 };
 
@@ -60,7 +65,7 @@ const finishWorkOut = async (req, res) => {
 =============================================*/
 const userCompletedWorkOuts = async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const userId = req.user._id;
     const completedWorkOuts = await WorkOutLog.find({
       userId,
       completed: true,
@@ -104,7 +109,8 @@ const userCompletedWorkOuts = async (req, res) => {
 =============================================*/
 
 const setWeeklyGoal = async (req, res) => {
-  const { userId, weeklyWorkOutGoal } = req.body;
+  const { weeklyWorkOutGoal } = req.body;
+  const userId = req.user._id;
   console.log(req.body);
 
   try {

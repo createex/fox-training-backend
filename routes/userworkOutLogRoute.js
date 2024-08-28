@@ -6,12 +6,18 @@ const {
   setWeeklyGoal,
   userCompletedWorkOuts,
 } = require("../controllers/userworkOutLogController");
+//auth middleware
+const authMiddleWare = require("../middleware/auth");
 
 //start workout
 
-router.post("/start-workout/:programId/:weekNumber", startWorkOut);
-router.post("/finish-workout", finishWorkOut);
-router.post("/set-workout-goal", setWeeklyGoal);
-router.get("/completed-workouts/:userId", userCompletedWorkOuts);
+router.get("/start-workout/:workOutId", startWorkOut);
+router.post("/finish-workout", authMiddleWare, finishWorkOut);
+router.post("/set-workout-goal", authMiddleWare, setWeeklyGoal);
+router.get(
+  "/completed-workouts/:userId",
+  authMiddleWare,
+  userCompletedWorkOuts
+);
 
 module.exports = router;

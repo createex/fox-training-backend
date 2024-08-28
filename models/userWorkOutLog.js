@@ -14,7 +14,7 @@ const workoutLogSchema = new mongoose.Schema({
   workOutId: { type: mongoose.Schema.Types.ObjectId, required: true },
   stations: [
     {
-      exerciseName: String,
+      exerciseName: { type: String, required: true },
       sets: [
         {
           previous: { type: Number, required: true },
