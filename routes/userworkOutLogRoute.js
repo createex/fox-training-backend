@@ -13,14 +13,14 @@ const authMiddleWare = require("../middleware/auth");
 //start workout
 
 router.get("/start-workout/:workOutId", startWorkOut);
+//finish workout
 router.post("/finish-workout", authMiddleWare, finishWorkOut);
+//set workout goal
 router.post("/set-workout-goal", authMiddleWare, setWeeklyGoal);
-router.get(
-  "/completed-workouts/:userId",
-  authMiddleWare,
-  userCompletedWorkOuts
-);
+//get user completed workouts details and completion dates
+router.get("/completed-workouts", authMiddleWare, userCompletedWorkOuts);
 
+//get user acheivements
 router.get("/awards", authMiddleWare, getUserAwAwards);
 
 module.exports = router;
