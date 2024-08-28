@@ -22,6 +22,7 @@ const workoutSchema = new mongoose.Schema({
     type: [stationSchema],
     required: true,
   },
+  date: { type: Date, required: true },
 });
 
 const weekSchema = new mongoose.Schema({

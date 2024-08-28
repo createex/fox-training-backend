@@ -2,11 +2,42 @@ const User = require("../models/user");
 const Program = require("../models/program");
 const WorkOutLog = require("../models/userWorkOutLog");
 const moment = require("moment");
+const mongoose = require("mongoose");
 const {
   isNewWeek,
   isPartOfStreak,
   getAwards,
 } = require("../utils/userWorkOutLog");
+
+/*=============================================
+=                   Get Todays Workout                   =
+=============================================*/
+const getTodaysWorkOut = async (req, res) => {
+  const startOfDay = moment().startOf("day").toDate();
+  const endOfDay = moment().endOf("day").toDate();
+
+  const program = await Program.findOne({
+    "weeks.workouts.date": {
+      $gte: startOfDay,
+      $lte: endOfDay,
+    },
+  }).lean();
+  if (!program) {
+    return res.status(404).json({ message: "No workout found for today" });
+  }
+
+  // Extract the workouts for today
+  const todaysWorkouts = program.weeks.flatMap((week) =>
+    week.workouts.filter((workout) =>
+      moment(workout.date).isBetween(startOfDay, endOfDay, null, "[]")
+    )
+  );
+
+  return res.status(200).json({
+    workout: todaysWorkouts,
+  });
+};
+/*============  End of Get Todays Workout  =============*/
 
 /*=============================================
 =                   start workout                   =
@@ -17,23 +48,34 @@ const startWorkOut = async (req, res) => {
   try {
     const { workOutId } = req.params;
 
-    // Query using the dot notation to access nested arrays properly
-    const currentProgram = await Program.findOne(
-      {
-        "weeks.workouts._id": workOutId,
-      },
-      {
-        "weeks.$": 1,
-      }
-    );
+    // Find the program containing the workout with the given ID
+    const program = await Program.findOne({
+      "weeks.workouts._id": new mongoose.Types.ObjectId(workOutId),
+    }).lean(); // Use lean() for better performance
 
-    if (!currentProgram) {
+    if (!program) {
       return res.status(404).json({ msg: "Program not found" });
     }
 
-    res.status(200).json(currentProgram);
+    // Find the specific workout with the given ID
+    let workout;
+    for (const week of program.weeks) {
+      workout = week.workouts.find((w) => w._id.toString() === workOutId);
+      if (workout) break; // Exit loop if workout is found
+    }
+
+    if (!workout) {
+      return res.status(404).json({ msg: "Workout not found" });
+    }
+
+    res.status(200).json({
+      workout,
+      programId: program._id,
+      programTitle: program.title,
+    });
   } catch (error) {
-    res.status(500).json({ msg: "program not found" });
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
   }
 };
 
@@ -162,4 +204,5 @@ module.exports = {
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
+  getTodaysWorkOut,
 };

@@ -6,10 +6,12 @@ const {
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
+  getTodaysWorkOut,
 } = require("../controllers/userworkOutLogController");
 //auth middleware
 const authMiddleWare = require("../middleware/auth");
 
+router.get("/todays-workout", getTodaysWorkOut);
 //start workout
 
 router.get("/start-workout/:workOutId", startWorkOut);
