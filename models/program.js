@@ -8,14 +8,20 @@ const setSchema = new mongoose.Schema({
 
 const stationSchema = new mongoose.Schema({
   exerciseName: { type: String, required: false },
-  sets: [setSchema],
+  sets: {
+    type: [setSchema],
+    required: true,
+  },
 });
 
 const workoutSchema = new mongoose.Schema({
   image: { type: String, required: true },
   name: { type: String, required: true },
   numberOfStations: { type: Number, required: true },
-  stations: [stationSchema],
+  stations: {
+    type: [stationSchema],
+    required: true,
+  },
 });
 
 const weekSchema = new mongoose.Schema({

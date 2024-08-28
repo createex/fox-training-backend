@@ -149,7 +149,7 @@ const setWeeklyGoal = async (req, res) => {
 const getUserAwAwards = async (req, res) => {
   const userId = req.user._id;
   try {
-    const awards = await getAwards(userId);
+    const awards = await getAwards({ userId });
     res.status(200).json(awards);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve awards" });

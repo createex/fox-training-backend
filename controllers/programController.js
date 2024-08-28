@@ -1,4 +1,5 @@
 const Program = require("../models/program");
+const { loginUser } = require("./authController");
 
 // Add a new program with default weeks
 const addProgram = async (req, res) => {
@@ -69,12 +70,10 @@ const updateProgram = async (req, res) => {
       return res.status(404).json({ message: "Program not found" });
     }
 
-    res
-      .status(200)
-      .json({
-        message: "Program updated successfully",
-        program: updatedProgram,
-      });
+    res.status(200).json({
+      message: "Program updated successfully",
+      program: updatedProgram,
+    });
   } catch (error) {
     res.status(500).json({ message: "Error updating program", error });
   }
