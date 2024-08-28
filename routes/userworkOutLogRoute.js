@@ -5,6 +5,7 @@ const {
   finishWorkOut,
   setWeeklyGoal,
   userCompletedWorkOuts,
+  getUserAwAwards,
 } = require("../controllers/userworkOutLogController");
 //auth middleware
 const authMiddleWare = require("../middleware/auth");
@@ -19,5 +20,7 @@ router.get(
   authMiddleWare,
   userCompletedWorkOuts
 );
+
+router.get("/awards", authMiddleWare, getUserAwAwards);
 
 module.exports = router;

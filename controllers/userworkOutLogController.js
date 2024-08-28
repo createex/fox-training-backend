@@ -3,6 +3,11 @@ const Program = require("../models/program");
 const WorkOutLog = require("../models/userWorkOutLog");
 const { default: mongoose } = require("mongoose");
 const moment = require("moment");
+const {
+  isNewWeek,
+  isPartOfStreak,
+  getAwards,
+} = require("../utils/userWorkOutLog");
 
 /*=============================================
 =                   start workout                   =
@@ -41,10 +46,10 @@ const startWorkOut = async (req, res) => {
 
 const finishWorkOut = async (req, res) => {
   const { programId, weekNumber, workOutId, stations } = req.body;
-
+  const userId = req.user._id;
   try {
     await WorkOutLog.create({
-      userId: req.user._id,
+      userId,
       workOutId,
       programId,
       weekNumber,
@@ -52,8 +57,34 @@ const finishWorkOut = async (req, res) => {
       completed: true,
       completedAt: Date.now(),
     });
+    //after completing workout incrementing totalWorkout count for the user
+    const user = await User.findOne(userId);
+
+    // Increment total workouts
+    user.totalWorkouts += 1;
+
+    // Check if the workout is in a new week
+    if (isNewWeek(user.lastWorkoutDate)) {
+      user.workoutsInWeek = 1; // Reset to 1 since this is the first workout of the week
+    } else {
+      user.workoutsInWeek += 1; // Increment the weekly count
+    }
+
+    // Update the last workout date
+    user.lastWorkoutDate = new Date();
+
+    // Update streaks based on conditions
+    if (isPartOfStreak(user.lastWorkoutDate)) {
+      user.streaks += 1;
+    } else {
+      user.streaks = 1; // Reset streak if there's a gap
+    }
+
+    await user.save();
     res.status(201).json({ msg: "workOut completed successfully" });
   } catch (error) {
+    console.log(error);
+
     res.json({ msg: "failed to finish workout", error: error });
   }
 };
@@ -71,21 +102,6 @@ const userCompletedWorkOuts = async (req, res) => {
       completed: true,
     }).sort({ completedAt: 1 });
 
-    //calculating workout streak
-    let streak = 0;
-    let lastWeek = null;
-    completedWorkOuts.forEach((log) => {
-      //week number of the week at which the workout is completed
-      const logWeek = moment(log.completedAt).isoWeek();
-
-      if (lastWeek === null || logWeek === lastWeek + 1) {
-        streak++;
-        lastWeek = logWeek;
-      } else if (logWeek !== lastWeek) {
-        streak = 1; // Streak breaks if the current log week is not consecutive
-        lastWeek = logWeek;
-      }
-    });
     const dates = completedWorkOuts.map((logs) =>
       moment(logs.completedAt).format("DD-MM-YYYY")
     );
@@ -94,7 +110,6 @@ const userCompletedWorkOuts = async (req, res) => {
     res.status(200).json({
       completedWorkOuts,
       count: completedWorkOuts.length,
-      streak,
       completionDates: dates,
     });
   } catch (error) {
@@ -133,9 +148,20 @@ const setWeeklyGoal = async (req, res) => {
 
 /*============  End of set weekly workout goad  =============*/
 
+const getUserAwAwards = async (req, res) => {
+  const userId = req.user._id;
+  try {
+    const awards = await getAwards(userId);
+    res.status(200).json(awards);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve awards" });
+  }
+};
+
 module.exports = {
   startWorkOut,
   finishWorkOut,
   setWeeklyGoal,
   userCompletedWorkOuts,
+  getUserAwAwards,
 };
