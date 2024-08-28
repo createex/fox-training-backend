@@ -19,6 +19,10 @@ const UserSchema = new mongoose.Schema({
   workoutsInWeek: { type: Number, default: 0 },
   streaks: { type: Number, default: 0 },
   lastWorkoutDate: { type: Date, default: null },
+  weeklyWorkOutGoal: {
+    type: Number,
+    default: 0,
+  },
 });
 
 module.exports = mongoose.model("User", UserSchema);

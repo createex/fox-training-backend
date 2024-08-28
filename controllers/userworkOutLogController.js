@@ -1,7 +1,6 @@
 const User = require("../models/user");
 const Program = require("../models/program");
 const WorkOutLog = require("../models/userWorkOutLog");
-const { default: mongoose } = require("mongoose");
 const moment = require("moment");
 const {
   isNewWeek,
@@ -34,7 +33,7 @@ const startWorkOut = async (req, res) => {
 
     res.status(200).json(currentProgram);
   } catch (error) {
-    res.json({ msg: "program not found" });
+    res.status(500).json({ msg: "program not found" });
   }
 };
 
@@ -60,20 +59,20 @@ const finishWorkOut = async (req, res) => {
     //after completing workout incrementing totalWorkout count for the user
     const user = await User.findOne(userId);
 
-    // Increment total workouts
+    // Incrementing total workouts
     user.totalWorkouts += 1;
 
-    // Check if the workout is in a new week
+    // Checking if the workout is in a new week
     if (isNewWeek(user.lastWorkoutDate)) {
       user.workoutsInWeek = 1; // Reset to 1 since this is the first workout of the week
     } else {
-      user.workoutsInWeek += 1; // Increment the weekly count
+      user.workoutsInWeek += 1; // Incrementing the weekly count
     }
 
-    // Update the last workout date
+    // Updating the last workout date
     user.lastWorkoutDate = new Date();
 
-    // Update streaks based on conditions
+    // Updating streaks based on conditions
     if (isPartOfStreak(user.lastWorkoutDate)) {
       user.streaks += 1;
     } else {
@@ -85,7 +84,7 @@ const finishWorkOut = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    res.json({ msg: "failed to finish workout", error: error });
+    res.status(500).json({ msg: "failed to finish workout", error: error });
   }
 };
 
@@ -113,7 +112,7 @@ const userCompletedWorkOuts = async (req, res) => {
       completionDates: dates,
     });
   } catch (error) {
-    res.json({ msg: "error finding user workOuts", error });
+    res.status(500).json({ msg: "error finding user workOuts", error });
   }
 };
 
@@ -126,23 +125,22 @@ const userCompletedWorkOuts = async (req, res) => {
 const setWeeklyGoal = async (req, res) => {
   const { weeklyWorkOutGoal } = req.body;
   const userId = req.user._id;
-  console.log(req.body);
-
   try {
-    const updatedUserWorkOut = await WorkOutLog.findOneAndUpdate(
-      { userId },
+    const updatedUserWorkOutGoal = await User.findOneAndUpdate(
+      { _id: userId },
       { $set: { weeklyWorkOutGoal: weeklyWorkOutGoal } },
       { new: true }
     );
-    if (!updatedUserWorkOut) {
-      return res.json({ msg: "user workOut history not found" });
+    if (!updatedUserWorkOutGoal) {
+      return res.status(404).json({ msg: "user record not found" });
     }
     res.status(200).json({
       msg: "Weekly workOut Goal set successfully",
-      updatedUserWorkOut,
     });
   } catch (error) {
-    res.json({ msg: "error updating weekly goal", error });
+    console.log(error);
+
+    res.status(500).json({ msg: "error updating weekly goal", error });
   }
 };
 

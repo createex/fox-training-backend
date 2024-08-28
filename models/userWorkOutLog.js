@@ -24,10 +24,6 @@ const workoutLogSchema = new mongoose.Schema({
       ],
     },
   ],
-  weeklyWorkOutGoal: {
-    type: Number,
-    default: 0,
-  },
   completed: { type: Boolean, default: false }, // Track workout completion
   completedAt: { type: Date }, // Timestamp for when the workout was completed
 });
