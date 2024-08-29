@@ -1,5 +1,42 @@
 const moment = require("moment");
 const User = require("../models/user");
+const Program = require("../models/program");
+const mongoose = require("mongoose");
+
+// finding specific workout by id
+const findWorkOutById = async (workOutId) => {
+  // Find the program containing the workout with the given ID
+  const program = await Program.findOne({
+    "weeks.workouts._id": new mongoose.Types.ObjectId(workOutId),
+  }).lean(); // Use lean() for better performance
+
+  if (!program) {
+    return res.status(404).json({ msg: "Program not found" });
+  }
+
+  // Initialize variables to hold the found workout and week number
+  let workout;
+  let weekNumber;
+
+  // Find the specific workout with the given ID and the corresponding week number
+  for (const week of program.weeks) {
+    workout = week.workouts.find((w) => w._id.toString() === workOutId);
+    if (workout) {
+      weekNumber = week.weekNumber; // Store the week number
+      break; // Exit loop if workout is found
+    }
+  }
+  if (!workout) {
+    return res.status(404).json({ msg: "Workout not found" });
+  }
+
+  return {
+    workout,
+    weekNumber,
+    programTitle: program.title,
+    programId: program._id,
+  };
+};
 
 //================= helpers =====================
 const isNewWeek = (lastWorkoutDate) => {
@@ -71,4 +108,5 @@ module.exports = {
   isNewWeek,
   isPartOfStreak,
   getAwards,
+  findWorkOutById,
 };

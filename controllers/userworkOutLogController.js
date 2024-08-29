@@ -4,6 +4,7 @@ const WorkOutLog = require("../models/userWorkOutLog");
 const moment = require("moment");
 const mongoose = require("mongoose");
 const {
+  findWorkOutById,
   isNewWeek,
   isPartOfStreak,
   getAwards,
@@ -48,34 +49,24 @@ const startWorkOut = async (req, res) => {
   try {
     const { workOutId } = req.params;
 
-    // Find the program containing the workout with the given ID
-    const program = await Program.findOne({
-      "weeks.workouts._id": new mongoose.Types.ObjectId(workOutId),
-    }).lean(); // Use lean() for better performance
-
-    if (!program) {
-      return res.status(404).json({ msg: "Program not found" });
+    //checking if user has already finished this workout
+    const alreadyFinished = await WorkOutLog.findOne({ workOutId });
+    if (alreadyFinished) {
+      return res
+        .status(500)
+        .json({ msg: "this workout has already been finished by user" });
     }
-
-    // Find the specific workout with the given ID
-    let workout;
-    for (const week of program.weeks) {
-      workout = week.workouts.find((w) => w._id.toString() === workOutId);
-      if (workout) break; // Exit loop if workout is found
-    }
-
-    if (!workout) {
-      return res.status(404).json({ msg: "Workout not found" });
-    }
-
+    //finding workout by id
+    const fetchedWorkout = await findWorkOutById(workOutId); //used helper created in utils/userWorkoutLog.js
     res.status(200).json({
-      workout,
-      programId: program._id,
-      programTitle: program.title,
+      workout: fetchedWorkout.workout,
+      weekNumber: fetchedWorkout.weekNumber,
+      programTitle: fetchedWorkout.programTitle,
+      programId: fetchedWorkout.programId,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error:", error });
   }
 };
 
@@ -86,14 +77,25 @@ const startWorkOut = async (req, res) => {
 =============================================*/
 
 const finishWorkOut = async (req, res) => {
-  const { programId, weekNumber, workOutId, stations } = req.body;
+  const { workOutId, stations } = req.body;
   const userId = req.user._id;
   try {
+    // fetch workout by id
+    const fetchedWorkOut = await findWorkOutById(workOutId);
+
+    //checking if stations length are same
+    if (stations.length !== fetchedWorkOut.workout.stations.length) {
+      return res
+        .status(500)
+        .json({ msg: "Number of station(s) are not the same" });
+    }
+
     await WorkOutLog.create({
       userId,
       workOutId,
-      programId,
-      weekNumber,
+      programId: fetchedWorkOut.programId,
+      weekNumber: fetchedWorkOut.weekNumber,
+      numberOfStations: fetchedWorkOut.workout.numberOfStations,
       stations,
       completed: true,
       completedAt: Date.now(),
@@ -199,10 +201,10 @@ const getUserAwAwards = async (req, res) => {
 };
 
 module.exports = {
+  getTodaysWorkOut,
   startWorkOut,
   finishWorkOut,
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
-  getTodaysWorkOut,
 };
