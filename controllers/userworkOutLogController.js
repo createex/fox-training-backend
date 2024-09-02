@@ -7,8 +7,11 @@ const {
   findWorkOutById,
   isNewWeek,
   isPartOfStreak,
-  getAwards,
+  checkAndAddStreakAchievements,
+  checkAndAddWeeklyAchievements,
+  checkAndAddWorkoutAchievements,
 } = require("../utils/userWorkOutLog");
+const UserAcheivements = require("../models/userAcheivements");
 
 /*=============================================
 =                   Get Todays Workout                   =
@@ -124,6 +127,9 @@ const finishWorkOut = async (req, res) => {
     }
 
     await user.save();
+    await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
+    await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
+    await checkAndAddStreakAchievements(user._id, user.streaks);
     res.status(201).json({ msg: "workOut completed successfully" });
   } catch (error) {
     console.log(error);
@@ -190,16 +196,39 @@ const setWeeklyGoal = async (req, res) => {
 
 /*============  End of set weekly workout goad  =============*/
 
+/*=============================================
+=                   Get User Awards                   =
+=============================================*/
+
 const getUserAwAwards = async (req, res) => {
   const userId = req.user._id;
   try {
-    const awards = await getAwards({ userId });
-    res.status(200).json(awards);
+    //aggregate acheivements based on category for specific user --->userId
+    const userAwards = await UserAcheivements.aggregate([
+      {
+        $match: { userId: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $group: {
+          _id: "$category",
+          awards: {
+            $push: { acheivementType: "$acheivementType", date: "$date" },
+          },
+          count: {
+            $sum: 1,
+          },
+        },
+      },
+    ]);
+    res.status(200).json(userAwards);
   } catch (error) {
+    console.log(error);
+
     res.status(500).json({ error: "Failed to retrieve awards" });
   }
 };
 
+/*============  End of Get User Awards  =============*/
 module.exports = {
   getTodaysWorkOut,
   startWorkOut,

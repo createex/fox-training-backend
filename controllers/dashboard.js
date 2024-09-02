@@ -75,6 +75,10 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const userRecentAcheivement = async (req, res) => {
+  res.json({ msg: "workign" });
+};
+
 module.exports = {
   topWinUsers,
   userWeeklyWorkoutGoal,

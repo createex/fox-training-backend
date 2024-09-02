@@ -1,5 +1,6 @@
 const moment = require("moment");
 const User = require("../models/user");
+const Acheivements = require("../models/userAcheivements");
 const Program = require("../models/program");
 const mongoose = require("mongoose");
 
@@ -55,58 +56,88 @@ const isPartOfStreak = (lastWorkoutDate) => {
   return diffInWeeks === 1; // True if the last workout was exactly a week ago
 };
 
-const getAwards = async ({ userId }) => {
-  const user = await User.findOne(userId);
+const addAchievement = async (userId, newAchievement) => {
+  try {
+    const userAcheivements = await Acheivements.find({ userId: userId });
 
-  const awards = {
-    totalWorkoutsAwards: calculateWorkoutAwards(user.totalWorkouts),
-    weeklyWorkoutAwards: calculateWeeklyAwards(user.workoutsInWeek),
-    streakAwards: calculateStreakAwards(user.streaks),
-  };
+    // Check if the achievement already exists with the same type and description
+    const alreadyExists = userAcheivements.some(
+      (achievement) =>
+        achievement.acheivementType === newAchievement.acheivementType &&
+        achievement.category === newAchievement.category
+    );
 
-  return awards;
+    // If not already exists, add new achievement with the current date
+    if (!alreadyExists) {
+      const newAchievementDocument = new Acheivements({
+        userId: userId,
+        ...newAchievement,
+        date: new Date(),
+      });
+      await newAchievementDocument.save();
+    } else {
+      console.log("Achievement already exists for today");
+    }
+  } catch (error) {
+    console.error("Error adding achievement:", error);
+  }
+};
+const checkAndAddWorkoutAchievements = async (userId, workoutsCompleted) => {
+  if (workoutsCompleted === 1) {
+    await addAchievement(userId, {
+      acheivementType: "1 Workout",
+      category: "total_workouts",
+    });
+  }
+  if (workoutsCompleted === 5) {
+    await addAchievement(userId, {
+      acheivementType: "5 Workout",
+      category: "total_workouts",
+    });
+  }
+};
+const checkAndAddWeeklyAchievements = async (userId, workoutsInWeek) => {
+  console.log(workoutsInWeek);
+
+  if (workoutsInWeek === 2) {
+    await addAchievement(userId, {
+      acheivementType: "2 Workout",
+      category: "workouts_in_week",
+    });
+  }
+  if (workoutsInWeek === 3) {
+    await addAchievement(userId, {
+      acheivementType: "3 Workout",
+      category: "workouts_in_week",
+    });
+  }
+};
+const checkAndAddStreakAchievements = async (userId, streaks) => {
+  if (streaks === 3) {
+    await addAchievement(userId, {
+      acheivementType: "3 weeks",
+      category: "streaks",
+    });
+  }
+  if (streaks === 6) {
+    await addAchievement(userId, {
+      acheivementType: "6 weeks",
+      category: "streaks",
+    });
+  }
+  if (streaks === 12) {
+    await addAchievement(userId, {
+      acheivementType: "12 weeks",
+      category: "streaks",
+    });
+  }
 };
 
-const calculateWorkoutAwards = (totalWorkouts) => {
-  const awards = [];
-
-  if (totalWorkouts >= 1) awards.push("1 Workout");
-  if (totalWorkouts >= 5) awards.push("5 Workouts");
-  if (totalWorkouts >= 10) awards.push("10 Workout");
-  if (totalWorkouts >= 25) awards.push("25 Workouts");
-  if (totalWorkouts >= 50) awards.push("50 Workout");
-  if (totalWorkouts >= 100) awards.push("100 Workouts");
-  if (totalWorkouts >= 200) awards.push("200 Workout");
-  if (totalWorkouts >= 300) awards.push("300 Workouts");
-  if (totalWorkouts >= 400) awards.push("400 Workout");
-  if (totalWorkouts >= 500) awards.push("500 Workouts");
-  return awards;
-};
-
-const calculateWeeklyAwards = (workoutsInWeek) => {
-  const awards = [];
-
-  if (workoutsInWeek >= 2) awards.push("2 Workouts in a Week");
-  if (workoutsInWeek >= 3) awards.push("3 Workouts in a Week");
-  if (workoutsInWeek >= 4) awards.push("4 Workouts in a Week");
-  if (workoutsInWeek >= 5) awards.push("5 Workouts in a Week");
-  if (workoutsInWeek >= 6) awards.push("6 Workouts in a Week");
-
-  return awards;
-};
-
-const calculateStreakAwards = (streaks) => {
-  const awards = [];
-
-  if (streaks >= 3) awards.push("3 Week Streak");
-  if (streaks >= 6) awards.push("6 Week Streak");
-  if (streaks >= 12) awards.push("12 Week Streak");
-
-  return awards;
-};
 module.exports = {
   isNewWeek,
   isPartOfStreak,
-  getAwards,
   findWorkOutById,
+  checkAndAddStreakAchievements,
+  checkAndAddWeeklyAchievements,
+  checkAndAddWorkoutAchievements,
 };
