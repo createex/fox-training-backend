@@ -1,4 +1,6 @@
 const User = require("../models/user");
+const userAcheivements = require("../models/userAcheivements");
+const moment = require("moment");
 
 const topWinUsers = async (req, res) => {
   try {
@@ -76,11 +78,68 @@ const getAllUsers = async (req, res) => {
 };
 
 const userRecentAcheivement = async (req, res) => {
-  res.json({ msg: "workign" });
+  try {
+    const startOfWeek = moment().startOf("month").toDate(); // Start of the current month
+    const endOfWeek = moment().endOf("month").toDate(); // End of the current month
+    const recentAcheivements = await userAcheivements.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: startOfWeek,
+            $lte: endOfWeek,
+          },
+        },
+      },
+      {
+        $sort: {
+          date: -1,
+        },
+      },
+      // Group by userId and get the most recent achievement
+      {
+        $group: {
+          _id: "$userId", // Group by userId
+          mostRecentAchievement: {
+            $first: {
+              achievementType: "$acheivementType",
+              date: "$date",
+            },
+          },
+        },
+      },
+      // Lookup to join with User collection to get user details
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id", // Field from the achievements collection
+          foreignField: "_id", // Field from the users collection
+          as: "userDetails", // Name of the new array field to add
+        },
+      },
+      // Unwind the userDetails array to get individual user details
+      {
+        $unwind: "$userDetails",
+      },
+      // Project fields to include in the result
+      {
+        $project: {
+          _id: 0, // Exclude the _id field from the result
+          userId: "$_id",
+          username: "$userDetails.username",
+          email: "$userDetails.email",
+          mostRecentAchievement: 1,
+        },
+      },
+    ]);
+    res.json(recentAcheivements);
+  } catch (error) {
+    res.status(500).json({ msg: "Error Fetching Recent Acheivements", error });
+  }
 };
 
 module.exports = {
   topWinUsers,
   userWeeklyWorkoutGoal,
   getAllUsers,
+  userRecentAcheivement,
 };
