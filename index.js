@@ -3,6 +3,7 @@ const express = require("express");
 const authRoute = require("./routes/authRoute");
 const programRoute = require("./routes/programRoute");
 const workOutLogRoute = require("./routes/userworkOutLogRoute");
+const dashboardRoute = require("./routes/dashboard");
 const config = require("./config/config");
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(express.json()); // Middleware for parsing JSON
 app.use("/user", authRoute);
 app.use("/programs", programRoute);
 app.use("/workout", workOutLogRoute);
+app.use("/dashboard", dashboardRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 // Define the User schema
 const UserSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+  },
   email: {
     type: String,
     required: true,
@@ -22,6 +26,10 @@ const UserSchema = new mongoose.Schema({
   weeklyWorkOutGoal: {
     type: Number,
     default: 0,
+  },
+  lastActiveAt: {
+    type: Date,
+    default: Date.now,
   },
 });
 

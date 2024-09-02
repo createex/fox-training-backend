@@ -172,7 +172,7 @@ const setWeeklyGoal = async (req, res) => {
   try {
     const updatedUserWorkOutGoal = await User.findOneAndUpdate(
       { _id: userId },
-      { $set: { weeklyWorkOutGoal: weeklyWorkOutGoal } },
+      { $set: { weeklyWorkOutGoal: parseInt(weeklyWorkOutGoal) } },
       { new: true }
     );
     if (!updatedUserWorkOutGoal) {
