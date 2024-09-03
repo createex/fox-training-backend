@@ -5,7 +5,7 @@ const Program = require("../models/program");
 const mongoose = require("mongoose");
 
 // finding specific workout by id
-const findWorkOutById = async (workOutId) => {
+const findWorkOutById = async (workOutId, res) => {
   // Find the program containing the workout with the given ID
   const program = await Program.findOne({
     "weeks.workouts._id": new mongoose.Types.ObjectId(workOutId),
@@ -50,10 +50,12 @@ const isNewWeek = (lastWorkoutDate) => {
 
 const isPartOfStreak = (lastWorkoutDate) => {
   // Assuming streaks are based on consecutive weeks of workouts
-  const currentDate = moment();
-  const lastWorkoutMoment = moment(lastWorkoutDate);
-  const diffInWeeks = currentDate.diff(lastWorkoutMoment, "weeks");
-  return diffInWeeks === 1; // True if the last workout was exactly a week ago
+  const currentDate = moment().startOf("day"); // Get current date without time
+  const lastWorkoutMoment = moment(lastWorkoutDate).startOf("day"); // Get last workout date without time
+  console.log(currentDate, lastWorkoutMoment);
+
+  const diffInDays = currentDate.diff(lastWorkoutMoment, "days") === 1;
+  return diffInDays;
 };
 
 const addAchievement = async (userId, newAchievement) => {
@@ -83,53 +85,66 @@ const addAchievement = async (userId, newAchievement) => {
   }
 };
 const checkAndAddWorkoutAchievements = async (userId, workoutsCompleted) => {
-  if (workoutsCompleted === 1) {
-    await addAchievement(userId, {
-      acheivementType: "1 Workout",
-      category: "total_workouts",
-    });
-  }
-  if (workoutsCompleted === 5) {
-    await addAchievement(userId, {
-      acheivementType: "5 Workout",
-      category: "total_workouts",
-    });
-  }
-};
-const checkAndAddWeeklyAchievements = async (userId, workoutsInWeek) => {
-  console.log(workoutsInWeek);
+  const workOutMileStones = [1, 5, 10, 25, 50, 100, 200, 300, 400, 500]; // Add more milestones as needed
 
-  if (workoutsInWeek === 2) {
+  if (workOutMileStones.includes(workoutsCompleted)) {
     await addAchievement(userId, {
-      acheivementType: "2 Workout",
-      category: "workouts_in_week",
+      acheivementType: `${workoutsCompleted} Workout${
+        workoutsCompleted > 1 ? "s" : ""
+      }`,
+      category: "total_workouts",
     });
   }
-  if (workoutsInWeek === 3) {
+};
+
+const checkAndAddWeeklyAchievements = async (userId, workoutsInWeek) => {
+  const weeklyMilestones = [2, 3, 4, 5, 6, 7]; // Add more milestones as needed
+
+  if (weeklyMilestones.includes(workoutsInWeek)) {
     await addAchievement(userId, {
-      acheivementType: "3 Workout",
+      acheivementType: `${workoutsInWeek} Workout${
+        workoutsInWeek > 1 ? "s" : ""
+      }`,
       category: "workouts_in_week",
     });
   }
 };
-const checkAndAddStreakAchievements = async (userId, streaks) => {
-  if (streaks === 3) {
+
+const checkAndAddStreakAchievements = async (userId, streak) => {
+  if (streak >= 14) {
+    await addAchievement(userId, {
+      acheivementType: "2 weeks",
+      category: "streaks",
+    });
+  }
+  if (streak >= 21) {
     await addAchievement(userId, {
       acheivementType: "3 weeks",
       category: "streaks",
     });
   }
-  if (streaks === 6) {
+  if (streak >= 42) {
     await addAchievement(userId, {
       acheivementType: "6 weeks",
       category: "streaks",
     });
   }
-  if (streaks === 12) {
+  if (streak >= 84) {
     await addAchievement(userId, {
       acheivementType: "12 weeks",
       category: "streaks",
     });
+  }
+};
+const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
+  const milestones = [1, 3, 5, 10, 12, 20, 50, 75, 100, 150, 200, 250, 300];
+  for (const milestone of milestones) {
+    if (totalWorkouts === milestone) {
+      await addAchievement(userId, {
+        acheivementType: `${milestone}`,
+        category: "personal_best",
+      });
+    }
   }
 };
 
@@ -140,4 +155,5 @@ module.exports = {
   checkAndAddStreakAchievements,
   checkAndAddWeeklyAchievements,
   checkAndAddWorkoutAchievements,
+  checkAndAddPersonalBestAwards,
 };

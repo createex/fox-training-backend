@@ -131,7 +131,7 @@ const userRecentAcheivement = async (req, res) => {
         },
       },
     ]);
-    res.json(recentAcheivements);
+    res.status(200).json(recentAcheivements);
   } catch (error) {
     res.status(500).json({ msg: "Error Fetching Recent Acheivements", error });
   }

@@ -10,6 +10,7 @@ const {
   checkAndAddStreakAchievements,
   checkAndAddWeeklyAchievements,
   checkAndAddWorkoutAchievements,
+  checkAndAddPersonalBestAwards,
 } = require("../utils/userWorkOutLog");
 const UserAcheivements = require("../models/userAcheivements");
 
@@ -84,7 +85,7 @@ const finishWorkOut = async (req, res) => {
   const userId = req.user._id;
   try {
     // fetch workout by id
-    const fetchedWorkOut = await findWorkOutById(workOutId);
+    const fetchedWorkOut = await findWorkOutById(workOutId, res);
 
     //checking if stations length are same
     if (stations.length !== fetchedWorkOut.workout.stations.length) {
@@ -117,11 +118,15 @@ const finishWorkOut = async (req, res) => {
     }
 
     // Updating the last workout date
-    user.lastWorkoutDate = new Date();
+    // user.lastWorkoutDate = new Date();
+    // console.log(fetchedWorkOut);
+
+    user.lastWorkoutDate = fetchedWorkOut.workout.date;
 
     // Updating streaks based on conditions
     if (isPartOfStreak(user.lastWorkoutDate)) {
       user.streaks += 1;
+      console.log("streak added");
     } else {
       user.streaks = 1; // Reset streak if there's a gap
     }
@@ -130,6 +135,7 @@ const finishWorkOut = async (req, res) => {
     await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
     await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
     await checkAndAddStreakAchievements(user._id, user.streaks);
+    await checkAndAddPersonalBestAwards(user._id, user.totalWorkouts);
     res.status(201).json({ msg: "workOut completed successfully" });
   } catch (error) {
     console.log(error);
