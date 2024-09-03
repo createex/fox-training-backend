@@ -98,7 +98,7 @@ const checkAndAddWorkoutAchievements = async (userId, workoutsCompleted) => {
 };
 
 const checkAndAddWeeklyAchievements = async (userId, workoutsInWeek) => {
-  const weeklyMilestones = [2, 3, 4, 5, 6, 7]; // Add more milestones as needed
+  const weeklyMilestones = [2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15]; // Add more milestones as needed
 
   if (weeklyMilestones.includes(workoutsInWeek)) {
     await addAchievement(userId, {
@@ -137,7 +137,7 @@ const checkAndAddStreakAchievements = async (userId, streak) => {
   }
 };
 const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
-  const milestones = [1, 3, 5, 10, 12, 20, 50, 75, 100, 150, 200, 250, 300];
+  const milestones = [1, 3, 5, 10, 20, 50, 75, 100, 150, 200, 250, 300];
   for (const milestone of milestones) {
     if (totalWorkouts === milestone) {
       await addAchievement(userId, {
