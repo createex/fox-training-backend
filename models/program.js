@@ -32,11 +32,11 @@ const stationSchema = new mongoose.Schema({
 const workoutSchema = new mongoose.Schema({
   image: {
     type: String,
-    required: false,
+    required: true,
   },
   name: {
     type: String,
-    required: false,
+    required: true,
   },
   numberOfStations: {
     type: Number,
@@ -56,7 +56,7 @@ const workoutSchema = new mongoose.Schema({
   },
   date: {
     type: Date,
-    required: false,
+    required: true,
   },
 });
 

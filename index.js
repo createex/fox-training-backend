@@ -4,6 +4,7 @@ const authRoute = require("./routes/authRoute");
 const programRoute = require("./routes/programRoute");
 const workOutLogRoute = require("./routes/userworkOutLogRoute");
 const dashboardRoute = require("./routes/dashboard");
+const tabSectionRoute = require("./routes/tabSection");
 const config = require("./config/config");
 
 const app = express();
@@ -15,6 +16,7 @@ app.use("/user", authRoute);
 app.use("/programs", programRoute);
 app.use("/workout", workOutLogRoute);
 app.use("/dashboard", dashboardRoute);
+app.use("/tab", tabSectionRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

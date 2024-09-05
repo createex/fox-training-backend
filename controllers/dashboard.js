@@ -103,6 +103,7 @@ const userRecentAcheivement = async (req, res) => {
             $first: {
               achievementType: "$acheivementType",
               date: "$date",
+              category: "$category",
             },
           },
         },
