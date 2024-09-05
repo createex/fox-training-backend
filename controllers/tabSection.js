@@ -18,18 +18,16 @@ const {
 
 const createTab = async (req, res) => {
   try {
-    const { password, confirmPassword } = req.body;
-    if (!password || !confirmPassword) {
+    const { password, tabId, stationNumber } = req.body;
+    if (!password || !tabId) {
       return res.status(500).json({ msg: "please provide all fields values" });
-    }
-    if (password !== confirmPassword) {
-      return res.status(500).json({ msg: "password does not match" });
     }
     const hashedPassword = await bcrypt.hash(password, 10); // Hash the tab password
     const tabs = await Tab.find();
     const newTab = new Tab({
+      tabId: tabId,
       password: hashedPassword,
-      tabNumber: tabs.length + 1, //adding one because initially length is 0
+      stationNumber: stationNumber,
     });
     await newTab.save();
     res.status(201).json({ message: "Tab created successfully", tab: newTab });
@@ -86,9 +84,8 @@ const userLoginToTab = async (req, res) => {
 
     // Access the stations array
     const stations = todaysWorkout.stations;
-    console.log(stations);
 
-    const targetStationNumber = tab.tabNumber;
+    const targetStationNumber = tab.stationNumber;
     const stationIndex = stations.findIndex(
       (station) => station.stationNumber === targetStationNumber
     );
@@ -119,9 +116,9 @@ const saveWorkout = async (req, res) => {
       return res.status(500).json({ msg: "tab not found" });
     }
 
-    if (tab.tabNumber !== station.stationNumber) {
+    if (tab.stationNumber !== station.stationNumber) {
       return res.status(500).json({
-        msg: `station Number : ${station.stationNumber} and  tab number :${tab.tabNumber} are not same`,
+        msg: `station Number : ${station.stationNumber} and  tab's station number :${tab.stationNumber} are not same`,
       });
     }
     const user = await User.findOne({ _id: userId });
@@ -209,9 +206,57 @@ const saveWorkout = async (req, res) => {
   }
 };
 
+const deleteTab = async (req, res) => {
+  try {
+    const tabId = req.params.tabId;
+    const tab = await Tab.findOneAndDelete({ _id: tabId });
+    if (!tab) {
+      res.status(404).json({ message: "Tab not found" });
+    }
+
+    // Fetch all remaining tabs and sort by their current tabNumber
+    const remainingTabs = await Tab.find().sort({ tabNumber: 1 });
+
+    res.status(200).json({ msg: "Tab deleted and station numbers reassigned" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete tab" });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const tabId = req.tabId;
+    const { newPassword, confirmPassword } = req.body;
+    const tab = await Tab.findOne({ _id: tabId });
+    if (!tab) {
+      return res.status(404).json({ msg: "tab not found" });
+    }
+
+    if (!newPassword || !confirmPassword) {
+      return res.status(500).json({ msg: "please provide all fields values" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(500).json({ msg: "passwords does not match" });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10); // Hash the tab password
+
+    await Tab.findOneAndUpdate(
+      { _id: tabId },
+      { $set: { password: hashedPassword } }
+    );
+    res.status(200).json({ msg: "password changed successfully" });
+  } catch (error) {
+    console.log("change password error:", error);
+
+    return res.status(500).json({ msg: "unable to change password" });
+  }
+};
+
 module.exports = {
   createTab,
   loginToTab,
   userLoginToTab,
   saveWorkout,
+  deleteTab,
+  changePassword,
 };

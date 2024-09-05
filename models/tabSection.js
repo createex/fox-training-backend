@@ -8,10 +8,15 @@ const tabSchema = new mongoose.Schema({
     ref: "User",
     default: null,
   },
-  tabNumber: {
+  stationNumber: {
     type: Number,
     required: true,
-    default: 0,
+    default: 1,
+  },
+  tabId: {
+    type: String,
+    required: true,
+    unique: true,
   },
 });
 
