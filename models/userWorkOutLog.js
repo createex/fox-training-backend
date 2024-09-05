@@ -31,6 +31,10 @@ const stationSchema = new mongoose.Schema({
     required: true,
     validate: [arrayLimit, "{PATH} must have at least one set"],
   },
+  stationNumber: {
+    type: Number,
+    required: true,
+  },
 });
 
 // Main schema for user workout logs

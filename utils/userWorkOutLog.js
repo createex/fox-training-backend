@@ -12,7 +12,7 @@ const findWorkOutById = async (workOutId, res) => {
   }).lean(); // Use lean() for better performance
 
   if (!program) {
-    return res.status(404).json({ msg: "Program not found" });
+    return false;
   }
 
   // Initialize variables to hold the found workout and week number
@@ -28,7 +28,7 @@ const findWorkOutById = async (workOutId, res) => {
     }
   }
   if (!workout) {
-    return res.status(404).json({ msg: "Workout not found" });
+    return false;
   }
 
   return {
@@ -149,24 +149,6 @@ const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
 };
 
 const fetchUserTodaysWorkout = async (res) => {
-  // const startOfDay = moment().startOf("day").toDate();
-  // const endOfDay = moment().endOf("day").toDate();
-  // const program = await Program.findOne({
-  //   "weeks.workouts.date": {
-  //     $gte: startOfDay,
-  //     $lte: endOfDay,
-  //   },
-  // }).lean();
-  // if (!program) {
-  //   return res.status(404).json({ message: "No workout found for today" });
-  // }
-  // // Extract the workouts for today
-  // const todaysWorkouts = program.weeks.flatMap((week) =>
-  //   week.workouts.filter((workout) =>
-  //     moment(workout.date).isBetween(startOfDay, endOfDay, null, "[]")
-  //   )
-  // );
-  // return { todaysWorkouts };
   const startOfDay = moment().startOf("day").toDate();
   const endOfDay = moment().endOf("day").toDate();
 
@@ -185,6 +167,7 @@ const fetchUserTodaysWorkout = async (res) => {
   // Initialize a variable to store today's workout details
   let todaysWorkout = null;
   let weekNumber = null;
+  let workoutId = null;
 
   // Iterate through weeks to find today's workout
   for (const week of program.weeks) {

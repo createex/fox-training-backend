@@ -45,7 +45,10 @@ const startWorkOut = async (req, res) => {
         .json({ msg: "this workout has already been finished by user" });
     }
     //finding workout by id
-    const fetchedWorkout = await findWorkOutById(workOutId); //used helper created in utils/userWorkoutLog.js
+    const fetchedWorkout = await findWorkOutById(workOutId, res); //used helper created in utils/userWorkoutLog.js
+    if (!fetchedWorkout) {
+      return res.status(500).json({ msg: "Workout not found" });
+    }
     res.status(200).json({
       workout: fetchedWorkout.workout,
       weekNumber: fetchedWorkout.weekNumber,
@@ -70,6 +73,9 @@ const finishWorkOut = async (req, res) => {
   try {
     // fetch workout by id
     const fetchedWorkOut = await findWorkOutById(workOutId, res);
+    if (!fetchedWorkOut) {
+      return res.status(500).json({ msg: "Workout not found" });
+    }
 
     //checking if stations length are same
     if (stations.length !== fetchedWorkOut.workout.stations.length) {
@@ -101,12 +107,6 @@ const finishWorkOut = async (req, res) => {
       user.workoutsInWeek += 1; // Incrementing the weekly count
     }
 
-    // Updating the last workout date
-    // user.lastWorkoutDate = new Date();
-    // console.log(fetchedWorkOut);
-
-    user.lastWorkoutDate = fetchedWorkOut.workout.date;
-
     // Updating streaks based on conditions
     if (isPartOfStreak(user.lastWorkoutDate)) {
       user.streaks += 1;
@@ -114,6 +114,7 @@ const finishWorkOut = async (req, res) => {
     } else {
       user.streaks = 1; // Reset streak if there's a gap
     }
+    user.lastWorkoutDate = new Date();
 
     await user.save();
     await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);

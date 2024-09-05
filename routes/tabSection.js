@@ -4,6 +4,7 @@ const {
   createTab,
   loginToTab,
   userLoginToTab,
+  saveWorkout,
 } = require("../controllers/tabSection");
 const verifyTabToken = require("../middleware/tabAuth");
 
@@ -12,5 +13,6 @@ const verifyTabToken = require("../middleware/tabAuth");
 router.post("/create-tab", createTab);
 router.post("/:tabId/login", loginToTab);
 router.post("/user-login", verifyTabToken, userLoginToTab);
+router.post("/save-workout", verifyTabToken, saveWorkout);
 
 module.exports = router;
