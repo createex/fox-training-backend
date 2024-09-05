@@ -8,6 +8,11 @@ const tabSchema = new mongoose.Schema({
     ref: "User",
     default: null,
   },
+  tabNumber: {
+    type: Number,
+    required: true,
+    default: 0,
+  },
 });
 
 module.exports = mongoose.model("Tab", tabSchema);

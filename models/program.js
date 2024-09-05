@@ -22,6 +22,10 @@ const stationSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  stationNumber: {
+    type: Number,
+    required: true,
+  },
   sets: {
     type: [setSchema],
     required: true,

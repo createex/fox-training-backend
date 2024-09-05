@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Tab = require("../models/tabSection");
 const { TAB_JWT_SECRET } = require("../config/config");
+const { fetchUserTodaysWorkout } = require("../utils/userWorkOutLog");
 const User = require("../models/user");
 
 const createTab = async (req, res) => {
@@ -14,7 +15,11 @@ const createTab = async (req, res) => {
       return res.status(500).json({ msg: "password does not match" });
     }
     const hashedPassword = await bcrypt.hash(password, 10); // Hash the tab password
-    const newTab = new Tab({ password: hashedPassword });
+    const tabs = await Tab.find();
+    const newTab = new Tab({
+      password: hashedPassword,
+      tabNumber: tabs.length + 1, //adding one because initially length is 0
+    });
     await newTab.save();
     res.status(201).json({ message: "Tab created successfully", tab: newTab });
   } catch (error) {
@@ -49,8 +54,6 @@ const loginToTab = async (req, res) => {
 const userLoginToTab = async (req, res) => {
   try {
     const { tabId } = req;
-    console.log(tabId);
-
     const { username } = req.body;
 
     // Find the tab and check if token matches
@@ -64,8 +67,32 @@ const userLoginToTab = async (req, res) => {
     // Associate user with tab session
     tab.loggedInUser = user._id;
     await tab.save();
+    const {
+      workout: todaysWorkout,
+      programId,
+      weekNumber,
+    } = await fetchUserTodaysWorkout(res);
 
-    res.json({ message: "User logged in successfully" });
+    // Access the stations array
+    const stations = todaysWorkout.stations;
+    console.log(stations);
+
+    const targetStationNumber = tab.tabNumber;
+    const stationIndex = stations.findIndex(
+      (station) => station.stationNumber === targetStationNumber
+    );
+    let workout = {
+      station: todaysWorkout.stations[stationIndex], //show specific station on each tab
+      userId: user._id,
+      weekNumber: weekNumber,
+      programId: programId,
+      workoutId: todaysWorkout._id,
+    };
+
+    res.status(200).json({
+      message: "User logged in successfully",
+      workout,
+    });
   } catch (error) {
     console.error("Error logging in user to tab:", error);
     res.status(500).json({ message: "Failed to log in user to tab" });

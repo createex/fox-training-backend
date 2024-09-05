@@ -11,6 +11,7 @@ const {
   checkAndAddWeeklyAchievements,
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
+  fetchUserTodaysWorkout,
 } = require("../utils/userWorkOutLog");
 const UserAcheivements = require("../models/userAcheivements");
 
@@ -18,29 +19,12 @@ const UserAcheivements = require("../models/userAcheivements");
 =                   Get Todays Workout                   =
 =============================================*/
 const getTodaysWorkOut = async (req, res) => {
-  const startOfDay = moment().startOf("day").toDate();
-  const endOfDay = moment().endOf("day").toDate();
-
-  const program = await Program.findOne({
-    "weeks.workouts.date": {
-      $gte: startOfDay,
-      $lte: endOfDay,
-    },
-  }).lean();
-  if (!program) {
-    return res.status(404).json({ message: "No workout found for today" });
+  try {
+    const { workout } = await fetchUserTodaysWorkout(res);
+    res.status(200).json({ workout: workout });
+  } catch (error) {
+    res.status(500).json({ msg: "unable to find workout" });
   }
-
-  // Extract the workouts for today
-  const todaysWorkouts = program.weeks.flatMap((week) =>
-    week.workouts.filter((workout) =>
-      moment(workout.date).isBetween(startOfDay, endOfDay, null, "[]")
-    )
-  );
-
-  return res.status(200).json({
-    workout: todaysWorkouts,
-  });
 };
 /*============  End of Get Todays Workout  =============*/
 

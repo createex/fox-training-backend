@@ -51,14 +51,6 @@ const workoutLogSchema = new mongoose.Schema({
   stations: {
     type: [stationSchema],
     required: true,
-    validate: {
-      validator: function (v) {
-        // Validation to ensure that stations array has valid number of stations
-        return v.length === this.numberOfStations;
-      },
-      message: (props) =>
-        `Number of stations provided (${props.value.length}) does not match the expected number!`,
-    },
   },
   numberOfStations: {
     type: Number,

@@ -148,6 +148,69 @@ const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
   }
 };
 
+const fetchUserTodaysWorkout = async (res) => {
+  // const startOfDay = moment().startOf("day").toDate();
+  // const endOfDay = moment().endOf("day").toDate();
+  // const program = await Program.findOne({
+  //   "weeks.workouts.date": {
+  //     $gte: startOfDay,
+  //     $lte: endOfDay,
+  //   },
+  // }).lean();
+  // if (!program) {
+  //   return res.status(404).json({ message: "No workout found for today" });
+  // }
+  // // Extract the workouts for today
+  // const todaysWorkouts = program.weeks.flatMap((week) =>
+  //   week.workouts.filter((workout) =>
+  //     moment(workout.date).isBetween(startOfDay, endOfDay, null, "[]")
+  //   )
+  // );
+  // return { todaysWorkouts };
+  const startOfDay = moment().startOf("day").toDate();
+  const endOfDay = moment().endOf("day").toDate();
+
+  // Find the program that contains today's workouts
+  const program = await Program.findOne({
+    "weeks.workouts.date": {
+      $gte: startOfDay,
+      $lte: endOfDay,
+    },
+  }).lean();
+
+  if (!program) {
+    return res.status(404).json({ message: "No workout found for today" });
+  }
+
+  // Initialize a variable to store today's workout details
+  let todaysWorkout = null;
+  let weekNumber = null;
+
+  // Iterate through weeks to find today's workout
+  for (const week of program.weeks) {
+    const workoutForToday = week.workouts.find((workout) =>
+      moment(workout.date).isBetween(startOfDay, endOfDay, null, "[]")
+    );
+
+    if (workoutForToday) {
+      todaysWorkout = workoutForToday;
+      weekNumber = week.weekNumber;
+      break; // Exit loop once today's workout is found
+    }
+  }
+
+  if (!todaysWorkout) {
+    return res.status(404).json({ message: "No workout found for today" });
+  }
+
+  // Return the program ID, week number, and today's workout
+  return {
+    programId: program._id,
+    weekNumber: weekNumber,
+    workout: todaysWorkout,
+  };
+};
+
 module.exports = {
   isNewWeek,
   isPartOfStreak,
@@ -156,4 +219,5 @@ module.exports = {
   checkAndAddWeeklyAchievements,
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
+  fetchUserTodaysWorkout,
 };
