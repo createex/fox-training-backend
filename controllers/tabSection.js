@@ -18,10 +18,14 @@ const {
 
 const createTab = async (req, res) => {
   try {
-    const { password, tabId, stationNumber } = req.body;
-    if (!password || !tabId) {
+    const { password, tabId, stationNumber, confirmPassword } = req.body;
+    if (!password || !tabId || !confirmPassword || !stationNumber) {
       return res.status(500).json({ msg: "please provide all fields values" });
     }
+    if (password !== confirmPassword) {
+      return res.status(500).json({ msg: "password does match" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10); // Hash the tab password
     const tabs = await Tab.find();
     const newTab = new Tab({
