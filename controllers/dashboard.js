@@ -18,6 +18,7 @@ const topWinUsers = async (req, res) => {
         $project: {
           email: 1,
           totalWorkouts: 1,
+          username: 1,
         },
       },
     ]);
@@ -79,14 +80,15 @@ const getAllUsers = async (req, res) => {
 
 const userRecentAcheivement = async (req, res) => {
   try {
-    const startOfWeek = moment().startOf("month").toDate(); // Start of the current month
-    const endOfWeek = moment().endOf("month").toDate(); // End of the current month
+    const startOfMonth = moment().startOf("month").toDate(); // Start of the current month
+    const endOfMonth = moment().endOf("month").toDate(); // End of the current month
+    const limit = req.query.limit;
     const recentAcheivements = await userAcheivements.aggregate([
       {
         $match: {
           date: {
-            $gte: startOfWeek,
-            $lte: endOfWeek,
+            $gte: startOfMonth,
+            $lte: endOfMonth,
           },
         },
       },
@@ -131,9 +133,14 @@ const userRecentAcheivement = async (req, res) => {
           mostRecentAchievement: 1,
         },
       },
+      {
+        $limit: parseInt(limit, 10),
+      },
     ]);
     res.status(200).json(recentAcheivements);
   } catch (error) {
+    console.log(error);
+
     res.status(500).json({ msg: "Error Fetching Recent Acheivements", error });
   }
 };
