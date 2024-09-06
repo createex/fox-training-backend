@@ -146,10 +146,8 @@ const userCompletedWorkOuts = async (req, res) => {
       moment(logs.completedAt).format("DD-MM-YYYY")
     );
 
-    //return workouts completed by user, count them, return workout streak,dates of completion
+    //return workouts completed by user
     res.status(200).json({
-      completedWorkOuts,
-      count: completedWorkOuts.length,
       completionDates: dates,
     });
   } catch (error) {
@@ -219,10 +217,44 @@ const getUserAwAwards = async (req, res) => {
   }
 };
 
+const getUserTotalWorkouts = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const programId = req.params.programId;
+    console.log(programId);
+
+    const user = await User.findOne({ _id: userId });
+    const totalWorkouts = user.totalWorkouts;
+    const programWorkouts = await WorkOutLog.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          programId: new mongoose.Types.ObjectId(programId),
+          completed: true,
+        },
+      },
+      {
+        $count: "programWorkouts",
+      },
+    ]);
+    const userWorkouts = {
+      totalWorkouts: totalWorkouts,
+      programWorkouts: programWorkouts[0].programWorkouts,
+    };
+
+    res.status(200).json(userWorkouts);
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({ error: "Failed to retrieve workouts" });
+  }
+};
+
 /*============  End of Get User Awards  =============*/
 module.exports = {
   getTodaysWorkOut,
   startWorkOut,
+  getUserTotalWorkouts,
   finishWorkOut,
   setWeeklyGoal,
   userCompletedWorkOuts,

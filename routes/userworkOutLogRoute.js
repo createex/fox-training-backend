@@ -7,6 +7,7 @@ const {
   userCompletedWorkOuts,
   getUserAwAwards,
   getTodaysWorkOut,
+  getUserTotalWorkouts,
 } = require("../controllers/userworkOutLogController");
 const updateActiveStatus = require("../middleware/updateActiveStatus");
 
@@ -43,10 +44,16 @@ router.post(
 );
 //get user completed workouts details and completion dates
 router.get(
-  "/completed-workouts",
+  "/completed-dates",
   authMiddleWare,
   updateActiveStatus,
   userCompletedWorkOuts
+);
+
+router.get(
+  "/user-total-workouts/:programId",
+  authMiddleWare,
+  getUserTotalWorkouts
 );
 
 //get user acheivements
