@@ -236,11 +236,7 @@ const deleteTab = async (req, res) => {
     if (!tab) {
       res.status(404).json({ message: "Tab not found" });
     }
-
-    // Fetch all remaining tabs and sort by their current tabNumber
-    const remainingTabs = await Tab.find().sort({ tabNumber: 1 });
-
-    res.status(200).json({ msg: "Tab deleted and station numbers reassigned" });
+    res.status(200).json({ msg: "Tab deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete tab" });
   }
