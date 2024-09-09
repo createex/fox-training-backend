@@ -67,6 +67,7 @@ const getAllUsers = async (req, res) => {
         totalWorkouts: 1,
         workoutsInWeek: 1,
         streaks: 1,
+        personalBestCounter: 1,
       }
     )
       .skip(skip)
