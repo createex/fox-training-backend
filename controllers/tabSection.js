@@ -248,7 +248,7 @@ const deleteTab = async (req, res) => {
 
 const changePassword = async (req, res) => {
   try {
-    const tabId = req.tabId;
+    const tabId = req.params.tabId;
     const { newPassword, confirmPassword } = req.body;
     const tab = await Tab.findOne({ _id: tabId });
     if (!tab) {
