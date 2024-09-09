@@ -41,6 +41,18 @@ const createTab = async (req, res) => {
   }
 };
 
+//get all tabs
+const getAllTabs = async (req, res) => {
+  try {
+    const tabs = await Tab.find({});
+    console.log(tabs);
+
+    res.status(200).json(tabs);
+  } catch (error) {
+    res.status(500).json({ msg: "unable retreive tabs" });
+  }
+};
+
 const loginToTab = async (req, res) => {
   try {
     const { tabId } = req.params;
@@ -270,4 +282,5 @@ module.exports = {
   saveWorkout,
   deleteTab,
   changePassword,
+  getAllTabs,
 };
