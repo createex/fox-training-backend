@@ -20,8 +20,10 @@ const UserAcheivements = require("../models/userAcheivements");
 =============================================*/
 const getTodaysWorkOut = async (req, res) => {
   try {
-    const { workout } = await fetchUserTodaysWorkout(res);
-    res.status(200).json({ workout: workout });
+    const { workout, programId } = await fetchUserTodaysWorkout(res);
+    // console.log(workout);
+
+    res.status(200).json({ workout: workout, programId: programId });
   } catch (error) {
     res.status(500).json({ msg: "unable to find workout" });
   }
