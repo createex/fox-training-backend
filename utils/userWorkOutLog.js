@@ -1,6 +1,7 @@
 const moment = require("moment");
 const User = require("../models/user");
 const Acheivements = require("../models/userAcheivements");
+const WorkoutLog = require("../models/userWorkOutLog");
 const Program = require("../models/program");
 const mongoose = require("mongoose");
 
@@ -136,15 +137,79 @@ const checkAndAddStreakAchievements = async (userId, streak) => {
     });
   }
 };
-const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
-  const milestones = [1, 3, 5, 10, 20, 50, 75, 100, 150, 200, 250, 300];
-  for (const milestone of milestones) {
-    if (totalWorkouts === milestone) {
-      await addAchievement(userId, {
-        acheivementType: `${milestone}`,
-        category: "personal_best",
-      });
+// const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
+//   const milestones = [1, 3, 5, 10, 20, 50, 75, 100, 150, 200, 250, 300];
+//   for (const milestone of milestones) {
+//     if (totalWorkouts === milestone) {
+//       await addAchievement(userId, {
+//         acheivementType: `${milestone}`,
+//         category: "personal_best",
+//       });
+//     }
+//   }
+// };
+const checkAndAddPersonalBestAwards = async ({
+  userId,
+  newWorkout,
+  previousWorkouts,
+}) => {
+  try {
+    // Fetch the latest personal best achievement for the user
+    const user = await User.findById(userId);
+
+    // Determine the next milestone in the sequence
+    const milestones = [
+      1, 3, 5, 7, 10, 20, 50, 75, 100, 200, 250, 300, 350, 400,
+    ];
+    const nextMilestone = milestones.find(
+      (milestone) => milestone > user.personalBestCounter
+    );
+
+    // Determine the maximum values for reps and lbs
+    let maxReps = 0;
+    let maxLbs = 0;
+    for (const workout of previousWorkouts) {
+      for (const station of workout.stations) {
+        for (const set of station.sets) {
+          maxReps = Math.max(maxReps, set.reps);
+          maxLbs = Math.max(maxLbs, set.lbs);
+        }
+      }
     }
+
+    // Initialize flags for checking personal best
+    let isNewPersonalBest = false;
+    // Compare current workout data against previous best values
+    for (const station of newWorkout.stations) {
+      for (const set of station.sets) {
+        const { lbs, reps } = set;
+        // Check if either reps or lbs is greater than the previous maximum
+        if (reps > maxReps || lbs > maxLbs) {
+          isNewPersonalBest = true;
+          break; // No need to check further once a new best is found
+        }
+      }
+      if (isNewPersonalBest) break;
+    }
+
+    // Increment personal best counter and add achievement if milestone is reached
+    if (isNewPersonalBest) {
+      user.personalBestCounter += 1;
+
+      // Check if the next milestone is reached
+      if (user.personalBestCounter === nextMilestone) {
+        await addAchievement(userId, {
+          acheivementType: `${nextMilestone}`,
+          category: "personal_best",
+        });
+        console.log("New personal best achievement added:", nextMilestone);
+      }
+
+      // Save the updated user data
+      await user.save();
+    }
+  } catch (error) {
+    console.error("Error checking and adding personal best awards:", error);
   }
 };
 

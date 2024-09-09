@@ -71,6 +71,7 @@ const finishWorkOut = async (req, res) => {
   const { workOutId, stations } = req.body;
   const userId = req.user._id;
   try {
+    const previousWorkouts = await WorkOutLog.find({ userId, completed: true });
     // fetch workout by id
     const fetchedWorkOut = await findWorkOutById(workOutId, res);
     if (!fetchedWorkOut) {
@@ -84,7 +85,7 @@ const finishWorkOut = async (req, res) => {
         .json({ msg: "Number of station(s) are not the same" });
     }
 
-    await WorkOutLog.create({
+    const newWorkout = await WorkOutLog.create({
       userId,
       workOutId,
       programId: fetchedWorkOut.programId,
@@ -120,7 +121,11 @@ const finishWorkOut = async (req, res) => {
     await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
     await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
     await checkAndAddStreakAchievements(user._id, user.streaks);
-    await checkAndAddPersonalBestAwards(user._id, user.totalWorkouts);
+    await checkAndAddPersonalBestAwards({
+      userId: user._id,
+      newWorkout,
+      previousWorkouts,
+    });
     res.status(201).json({ msg: "workOut completed successfully" });
   } catch (error) {
     console.log(error);

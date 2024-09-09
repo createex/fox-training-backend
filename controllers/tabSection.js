@@ -172,6 +172,7 @@ const saveWorkout = async (req, res) => {
         .status(500)
         .json({ message: "Number of stations are more then specified" });
     }
+    const previousWorkouts = await WorkoutLog.find({ userId, completed: true });
 
     // Check if all stations have been filled
     if (workoutLog.stations.length === workoutLog.numberOfStations) {
@@ -196,10 +197,16 @@ const saveWorkout = async (req, res) => {
       user.lastWorkoutDate = new Date();
 
       await user.save();
-      await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
-      await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
-      await checkAndAddStreakAchievements(user._id, user.streaks);
-      await checkAndAddPersonalBestAwards(user._id, user.totalWorkouts);
+      if (workoutLog.completed) {
+        await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
+        await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
+        await checkAndAddStreakAchievements(user._id, user.streaks);
+        await checkAndAddPersonalBestAwards({
+          userId: user._id,
+          newWorkout: workoutLog,
+          previousWorkouts,
+        });
+      }
     }
     await workoutLog.save();
     return res.status(200).json({ msg: "workout saved successfully" });
