@@ -8,6 +8,7 @@ const {
   getUserAwAwards,
   getTodaysWorkOut,
   getUserTotalWorkouts,
+  editUserName,
 } = require("../controllers/userworkOutLogController");
 const updateActiveStatus = require("../middleware/updateActiveStatus");
 
@@ -58,5 +59,8 @@ router.get(
 
 //get user acheivements
 router.get("/awards", authMiddleWare, updateActiveStatus, getUserAwAwards);
+
+//edit username
+router.patch("/edit-username", authMiddleWare, editUserName);
 
 module.exports = router;

@@ -244,9 +244,11 @@ const getUserTotalWorkouts = async (req, res) => {
         $count: "programWorkouts",
       },
     ]);
+
     const userWorkouts = {
       totalWorkouts: totalWorkouts,
-      programWorkouts: programWorkouts[0].programWorkouts,
+      programWorkouts:
+        programWorkouts.length == 0 ? 0 : programWorkouts[0].programWorkouts,
     };
 
     res.status(200).json(userWorkouts);
@@ -258,6 +260,25 @@ const getUserTotalWorkouts = async (req, res) => {
 };
 
 /*============  End of Get User Awards  =============*/
+
+/*=============================================
+=                   Edit User Name                   =
+=============================================*/
+
+const editUserName = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { username } = req.body;
+    await User.findOneAndUpdate(
+      { _id: userId },
+      { $set: { username: username } }
+    );
+    res.status(200).json({ msg: "Username updated Successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve workouts" });
+  }
+};
+/*============  End of Edit User Name  =============*/
 module.exports = {
   getTodaysWorkOut,
   startWorkOut,
@@ -266,4 +287,5 @@ module.exports = {
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
+  editUserName,
 };
