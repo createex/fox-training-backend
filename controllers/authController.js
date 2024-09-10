@@ -91,13 +91,9 @@ async function forgotPassword(req, res) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    //   const otp = generateOTP();
-    //   console.log(otp);
-    //   storeOTP(email, otp);
+    const token = generateToken(user._id);
 
-    //   const mail = await sendOTPEmail(email, otp);
-
-    return res.status(200).json({ message: "user found" });
+    return res.status(200).json({ token });
   } catch (error) {
     console.error("Error resetting password:", error);
     return res

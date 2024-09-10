@@ -38,6 +38,11 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  forgotPasswordOtp: {
+    type: String,
+    required: false,
+    default: null,
+  },
 });
 
 module.exports = mongoose.model("User", UserSchema);
