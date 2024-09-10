@@ -55,11 +55,10 @@ const getAllTabs = async (req, res) => {
 
 const loginToTab = async (req, res) => {
   try {
-    const { tabId } = req.params;
-    const { password } = req.body;
+    const { tabId, password } = req.body;
 
     // Find the tab
-    const tab = await Tab.findOne({ _id: tabId });
+    const tab = await Tab.findOne({ tabId });
     if (!tab) return res.status(404).json({ message: "Tab not found" });
 
     // Verify tab password
@@ -82,7 +81,7 @@ const userLoginToTab = async (req, res) => {
     const { username } = req.body;
 
     // Find the tab and check if token matches
-    const tab = await Tab.findOne({ _id: tabId });
+    const tab = await Tab.findOne({ tabId });
     if (!tab) return res.status(404).json({ message: "Tab not found" });
 
     // Find the user
@@ -127,7 +126,7 @@ const saveWorkout = async (req, res) => {
   try {
     const { workOutId, userId, station, weekNumber, programId } = req.body;
     const tabId = req.tabId;
-    const tab = await Tab.findOne({ _id: tabId });
+    const tab = await Tab.findOne({ tabId });
     if (!tab) {
       return res.status(500).json({ msg: "tab not found" });
     }
