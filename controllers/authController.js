@@ -136,9 +136,55 @@ async function resetPassword(req, res) {
   }
 }
 
+/*=============================================
+=                   Get  User Profile                   =
+=============================================*/
+
+const getUserProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findOne({ _id: userId });
+    if (!user) {
+      return res.status(404).json({ msg: "user not found" });
+    }
+    const userProfile = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      image: user.image,
+    };
+    res.status(200).json(userProfile);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve profile details" });
+  }
+};
+
+/*============  End of Get  User Profile  =============*/
+
+/*=============================================
+=                   Edit User Name                   =
+=============================================*/
+
+const editProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { username, image } = req.body;
+    await User.findOneAndUpdate(
+      { _id: userId },
+      { $set: { username: username, image: image } }
+    );
+    res.status(200).json({ msg: "profile edited  Successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to edit profile" });
+  }
+};
+/*============  End of Edit User Name  =============*/
+
 module.exports = {
   registerUser,
   loginUser,
   forgotPassword,
   resetPassword,
+  getUserProfile,
+  editProfile,
 };
