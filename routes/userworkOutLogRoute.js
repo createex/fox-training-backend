@@ -55,6 +55,7 @@ router.get(
 router.get(
   "/user-total-workouts/:programId",
   authMiddleWare,
+  updateActiveStatus,
   getUserTotalWorkouts
 );
 
@@ -62,6 +63,11 @@ router.get(
 router.get("/awards", authMiddleWare, updateActiveStatus, getUserAwAwards);
 
 //completed workouts out of weekly workout goal
-router.get("/completed-goal", authMiddleWare, getCompletedWeeklyGoal);
+router.get(
+  "/completed-goal",
+  authMiddleWare,
+  updateActiveStatus,
+  getCompletedWeeklyGoal
+);
 
 module.exports = router;

@@ -5,7 +5,11 @@ const updateUserActivity = async (req, res, next) => {
     const userId = req.user.id;
 
     // Update the last active timestamp
-    await User.findOneAndUpdate({ _id: userId }, { lastActiveAt: new Date() });
+    await User.findOneAndUpdate(
+      { _id: userId },
+      { $set: { lastActiveAt: new Date() } }
+    );
+    console.log(new Date());
 
     next();
   } catch (error) {
@@ -13,5 +17,4 @@ const updateUserActivity = async (req, res, next) => {
     next();
   }
 };
-
 module.exports = updateUserActivity;

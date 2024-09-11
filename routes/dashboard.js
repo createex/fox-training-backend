@@ -5,7 +5,6 @@ const {
   userWeeklyWorkoutGoal,
   getAllUsers,
   userRecentAcheivement,
-  getActiveUsers,
 } = require("../controllers/dashboard");
 
 router.get("/top-win-users", topWinUsers);
