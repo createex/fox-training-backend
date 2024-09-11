@@ -279,7 +279,44 @@ const editUserName = async (req, res) => {
   }
 };
 /*============  End of Edit User Name  =============*/
+
+/*=============================================
+=                   Weekly completed Goal                   =
+=============================================*/
+
+const getCompletedWeeklyGoal = async (req, res) => {
+  try {
+    // Get the start and end of the current week
+    const userId = req.user._id;
+    const startOfWeek = moment().startOf("week").toDate();
+    const endOfWeek = moment().endOf("week").toDate();
+    const user = await User.findOne({ _id: userId });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    const userWeeklyGoal = user.weeklyWorkOutGoal;
+    // Query to count workouts completed this week
+    const completedWorkoutsCount = await WorkOutLog.countDocuments({
+      userId,
+      completed: true, // Filter for completed workouts
+      completedAt: { $gte: startOfWeek, $lte: endOfWeek }, // Date range for this week
+    });
+    const completedWorkouts = {
+      userWeeklyGoal,
+      completedGoal: completedWorkoutsCount,
+      total: `${completedWorkoutsCount}/${userWeeklyGoal}`,
+    };
+    res.status(200).json(completedWorkouts);
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({ error: "Failed to retrieve weekly completed goal" });
+  }
+};
+
+/*============  End of Weekly completed Goal  =============*/
 module.exports = {
+  getCompletedWeeklyGoal,
   getTodaysWorkOut,
   startWorkOut,
   getUserTotalWorkouts,
