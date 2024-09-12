@@ -259,6 +259,57 @@ const fetchUserTodaysWorkout = async (res) => {
   };
 };
 
+function getTimeFilter(timePeriod) {
+  const now = new Date(); // Current date
+
+  switch (timePeriod) {
+    case "1_week":
+      return { $gte: new Date(now.setDate(now.getDate() - 7)) }; // Last 7 days
+    case "1_month":
+      return { $gte: new Date(now.setMonth(now.getMonth() - 1)) }; // Last 1 month
+    case "6_months":
+      return { $gte: new Date(now.setMonth(now.getMonth() - 6)) }; // Last 6 months
+    case "1_year":
+      return { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) }; // Last 1 year
+    default:
+      return {}; // No time filter if none specified
+  }
+}
+
+async function fetchWeightData(repRange, timePeriod, userId) {
+  const [minReps, maxReps] = repRange.split("-").map(Number);
+  const timeFilter = getTimeFilter(timePeriod); // Function to convert the timePeriod to MongoDB date query format
+
+  // Query the database
+  const result = await WorkoutLog.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        completedAt: timeFilter,
+      },
+    }, // Filter by user and time
+    { $unwind: "$stations" },
+    { $unwind: "$stations.sets" },
+    {
+      $match: {
+        "stations.sets.reps": { $gte: minReps, $lte: maxReps },
+      },
+    },
+    {
+      $group: {
+        _id: "$completedAt",
+        weightData: { $push: "$stations.sets.lbs" },
+      },
+    },
+    { $sort: { _id: 1 } }, // Sort by date
+  ]);
+
+  return result.map((data) => ({
+    date: data._id,
+    lbs: data.weightData,
+  }));
+}
+
 module.exports = {
   isNewWeek,
   isPartOfStreak,
@@ -268,4 +319,6 @@ module.exports = {
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
+  getTimeFilter,
+  fetchWeightData,
 };

@@ -12,6 +12,7 @@ const {
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
+  fetchWeightData,
 } = require("../utils/userWorkOutLog");
 const UserAcheivements = require("../models/userAcheivements");
 
@@ -296,6 +297,24 @@ const getCompletedWeeklyGoal = async (req, res) => {
 };
 
 /*============  End of Weekly completed Goal  =============*/
+
+/*=============================================
+=                   Get Weight Data                   =
+=============================================*/
+
+const getWeightData = async (req, res) => {
+  const userId = req.user._id;
+  const { repRange, timePeriod } = req.query;
+
+  try {
+    const data = await fetchWeightData(repRange, timePeriod, userId);
+    res.json({ data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/*============  End of Get Weight Data  =============*/
 module.exports = {
   getCompletedWeeklyGoal,
   getTodaysWorkOut,
@@ -305,4 +324,5 @@ module.exports = {
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
+  getWeightData,
 };

@@ -8,7 +8,7 @@ const {
   getUserAwAwards,
   getTodaysWorkOut,
   getUserTotalWorkouts,
-
+  getWeightData,
   getCompletedWeeklyGoal,
 } = require("../controllers/userworkOutLogController");
 const updateActiveStatus = require("../middleware/updateActiveStatus");
@@ -69,5 +69,8 @@ router.get(
   updateActiveStatus,
   getCompletedWeeklyGoal
 );
+
+//weight data for reps range
+router.get("/weight-data", authMiddleWare, updateActiveStatus, getWeightData);
 
 module.exports = router;
