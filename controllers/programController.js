@@ -119,31 +119,60 @@ const addWorkoutToWeek = async (req, res) => {
   }
 };
 
+/*=============================================
+=                   Update Workout In a Program                   =
+=============================================*/
+
 // Update a workout in a specific week
 const updateWorkoutInWeek = async (req, res) => {
-  const { programId, weekNumber, workoutIndex } = req.params;
-  const { workout } = req.body;
+  const { programId, workoutId } = req.params;
+  const { image, name, numberOfStations, stations, date } = req.body;
 
   try {
     const program = await Program.findById(programId);
+
     if (!program) {
-      return res.status(404).json({ message: "Program not found" });
+      throw new Error("Program not found");
     }
 
-    const week = program.weeks.find(
-      (w) => w.weekNumber === parseInt(weekNumber)
-    );
-    if (!week || !week.workouts[workoutIndex]) {
-      return res.status(404).json({ message: "Workout not found" });
+    let weekFound = false;
+    for (const week of program.weeks) {
+      const workoutIndex = week.workouts.findIndex(
+        (w) => w._id.toString() === workoutId
+      );
+      if (workoutIndex !== -1) {
+        // Directly replace the old workout with the updated workout
+        if (stations.length !== numberOfStations) {
+          console.log(stations.length, numberOfStations);
+
+          return res
+            .status(500)
+            .json({ message: "stations number not matched" });
+        }
+
+        week.workouts[workoutIndex].image = image;
+        week.workouts[workoutIndex].name = name;
+        week.workouts[workoutIndex].numberOfStations = numberOfStations;
+        week.workouts[workoutIndex].stations = stations;
+        week.workouts[workoutIndex].date = date;
+        weekFound = true;
+        break;
+      }
     }
 
-    week.workouts[workoutIndex] = workout;
+    if (!weekFound) {
+      throw new Error("Workout not found");
+    }
     await program.save();
-    res.status(200).json({ message: "Workout updated successfully", program });
+    res.status(200).json({ message: "Workout updated successfully" });
   } catch (error) {
+    console.log(error);
+
     res.status(500).json({ message: "Error updating workout", error });
   }
 };
+
+/*============  End of Update Workout In a Program  =============*/
 
 // Delete a workout from a specific week
 const deleteWorkoutFromWeek = async (req, res) => {
@@ -346,6 +375,27 @@ const deleteSetFromStation = async (req, res) => {
   }
 };
 
+/*=============================================
+=                   Get Program Workouts                   =
+=============================================*/
+
+const getProgramWorkouts = async (req, res) => {
+  try {
+    const programId = req.params.programId;
+    const program = await Program.findById(programId);
+    if (!program) {
+      return res.status(404).json({ message: "Program not found" });
+    }
+    // Extract workouts from each week
+    const workouts = program.weeks.flatMap((week) => week.workouts);
+    res.status(200).json({ programId: programId, workouts });
+  } catch (error) {
+    res.status(500).json({ message: "Unaable to fetch workouts", error });
+  }
+};
+
+/*============  End of Get Program Workouts  =============*/
+
 // Export all functions at once
 module.exports = {
   addProgram,
@@ -361,4 +411,5 @@ module.exports = {
   addSetToStation,
   updateSetInStation,
   deleteSetFromStation,
+  getProgramWorkouts,
 };

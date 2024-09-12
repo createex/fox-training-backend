@@ -17,9 +17,11 @@ router.delete("/del/:id", programController.deleteProgram);
 // Route to add a workout to a specific week
 router.post("/addWorkout", programController.addWorkoutToWeek);
 
+//route to get workouts of a particular program
+router.get("/:programId/workouts", programController.getProgramWorkouts);
 // Route to update a workout in a specific week
 router.put(
-  "/programs/:programId/weeks/:weekNumber/workouts/:workoutIndex",
+  "/:programId/workout/:workoutId",
   programController.updateWorkoutInWeek
 );
 
