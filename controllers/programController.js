@@ -111,6 +111,34 @@ const addWorkoutToWeek = async (req, res) => {
       return res.status(404).json({ message: "Week not found" });
     }
 
+    // Custom validation for workout
+    if (!workout.name || !workout.image) {
+      return res
+        .status(400)
+        .json({ message: "Workout name and image are required." });
+    }
+
+    if (workout.stations.length !== workout.numberOfStations) {
+      return res.status(400).json({
+        message: `The number of stations provided (${workout.stations.length}) does not match the expected number (${workout.numberOfStations}).`,
+      });
+    }
+
+    // Validate each station for the required fields
+    for (const station of workout.stations) {
+      if (!station.exerciseName) {
+        return res
+          .status(400)
+          .json({ message: "Exercise name is required for each station." });
+      }
+      if (!station.sets || station.sets.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Each station must have at least one set." });
+      }
+    }
+
+    // If all validations pass, push the workout into the week's workouts
     week.workouts.push(workout);
     await program.save();
     res.status(201).json({ message: "Workout added successfully", program });
