@@ -1,9 +1,41 @@
+const { BlobServiceClient } = require('@azure/storage-blob');
 const User = require("../models/user");
 const { generateToken } = require("../utils/jwt");
 const generateOTP = require("../utils/otpGenerator");
 const { storeOTP, verifyOTP } = require("../utils/otpVerifier");
 const bcrypt = require("bcryptjs");
 const { validationResult } = require("express-validator");
+const multer = require('multer');
+const path = require('path');
+require("dotenv").config();
+
+// Azure Blob Storage setup
+const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+const containerClient = blobServiceClient.getContainerClient(process.env.AZURE_CONTAINER_NAME);
+
+// Multer setup to store files in memory
+const storage = multer.memoryStorage(); 
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: function (req, file, cb) {
+        const filetypes = /jpeg|jpg|png|gif/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Only images are allowed'));
+    }
+}).single('image'); // Adjust the field name as per your form
+
+async function uploadToAzureBlob(fileBuffer, fileName) {
+    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+    await blockBlobClient.uploadData(fileBuffer);
+    return blockBlobClient.url;
+}
+
 
 async function registerUser(req, res) {
   const errors = validationResult(req);
@@ -136,10 +168,7 @@ async function resetPassword(req, res) {
   }
 }
 
-/*=============================================
-=                   Get  User Profile                   =
-=============================================*/
-
+// Get  User Profile   
 const getUserProfile = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -159,26 +188,26 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-/*============  End of Get  User Profile  =============*/
-
-/*=============================================
-=                   Edit User Name                   =
-=============================================*/
-
+//Edit User Name 
 const editProfile = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { username, image } = req.body;
-    await User.findOneAndUpdate(
+    const {username} = req.body;
+    let picUrl = null;
+    if (req.file) {
+        const fileName = `${Date.now()}${path.extname(req.file.originalname)}`;
+        picUrl = await uploadToAzureBlob(req.file.buffer, fileName);
+    }
+    const profile= await User.findOneAndUpdate(
       { _id: userId },
-      { $set: { username: username, image: image } }
+      { $set: { username: username, image: picUrl } }
     );
-    res.status(200).json({ msg: "profile edited  Successfully" });
+    res.status(200).json({ msg: "Profile edited Successfully",profile });
   } catch (error) {
     res.status(500).json({ error: "Failed to edit profile" });
   }
 };
-/*============  End of Edit User Name  =============*/
+
 
 module.exports = {
   registerUser,
@@ -186,5 +215,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getUserProfile,
-  editProfile,
+  editProfile:[upload, editProfile]
 };

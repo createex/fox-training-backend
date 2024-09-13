@@ -14,6 +14,7 @@ const UserSchema = new mongoose.Schema({
   image: {
     type: String,
     required: false,
+    default:'https://via.placeholder.com/150'
   },
   password: {
     type: String,

@@ -1,6 +1,36 @@
+const { BlobServiceClient } = require('@azure/storage-blob');
 const Program = require("../models/program");
 const { loginUser } = require("./authController");
+const multer = require('multer');
+const path = require('path');
+require("dotenv").config();
 
+// Azure Blob Storage setup
+const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+const containerClient = blobServiceClient.getContainerClient(process.env.AZURE_CONTAINER_NAME);
+
+// Multer setup to store files in memory
+const storage = multer.memoryStorage(); 
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: function (req, file, cb) {
+        const filetypes = /jpeg|jpg|png|gif/;
+        const mimetype = filetypes.test(file.mimetype);
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        }
+        cb(new Error('Only images are allowed'));
+    }
+}).single('image'); // Adjust the field name as per your form
+
+async function uploadToAzureBlob(fileBuffer, fileName) {
+    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+    await blockBlobClient.uploadData(fileBuffer);
+    return blockBlobClient.url;
+}
 // Add a new program with default weeks
 const addProgram = async (req, res) => {
   const { title, startDate } = req.body;
@@ -422,7 +452,26 @@ const getProgramWorkouts = async (req, res) => {
   }
 };
 
-/*============  End of Get Program Workouts  =============*/
+//add image
+const addWorkoutImage = async (req, res) => {
+  try {
+    let imageUrl = null;
+    if (req.file) {
+      const fileName = `${Date.now()}${path.extname(req.file.originalname)}`;
+      imageUrl = await uploadToAzureBlob(req.file.buffer, fileName);
+    }
+
+    // Respond with the image URL or an appropriate message if no file was uploaded
+    if (imageUrl) {
+      res.status(200).json({ imageUrl });
+    } else {
+      res.status(400).json({ message: "No image file provided" });
+    }
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    res.status(500).json({ message: "Error uploading image", error });
+  }
+};
 
 // Export all functions at once
 module.exports = {
@@ -431,6 +480,7 @@ module.exports = {
   updateProgram,
   deleteProgram,
   addWorkoutToWeek,
+  addWorkoutImage:[upload,addWorkoutImage],
   updateWorkoutInWeek,
   deleteWorkoutFromWeek,
   addStationToWorkout,

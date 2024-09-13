@@ -3,4 +3,5 @@ module.exports = {
     "mongodb+srv://lakevieweast:lPjjAxsoOx7Snzxs@cluster0.t8er9bk.mongodb.net/",
   JWT_SECRET: "FoxTraining",
   TAB_JWT_SECRET: "AdminCreatingTab",
+
 };
