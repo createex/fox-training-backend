@@ -35,6 +35,10 @@ const stationSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  completed: {
+    type: Boolean,
+    default: false, // New field to track station completion
+  },
 });
 
 // Main schema for user workout logs

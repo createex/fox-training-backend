@@ -74,7 +74,6 @@ const loginToTab = async (req, res) => {
     res.status(500).json({ message: "Failed to log in to tab" });
   }
 };
-
 const userLoginToTab = async (req, res) => {
   try {
     const { tabId } = req;
@@ -91,6 +90,8 @@ const userLoginToTab = async (req, res) => {
     // Associate user with tab session
     tab.loggedInUser = user._id;
     await tab.save();
+
+    // Fetch today's workout details
     const {
       workout: todaysWorkout,
       programId,
@@ -104,8 +105,19 @@ const userLoginToTab = async (req, res) => {
     const stationIndex = stations.findIndex(
       (station) => station.stationNumber === targetStationNumber
     );
+
+    // Check if the station is completed
+    const completedStations = await WorkoutLog.findOne({
+      userId: user._id,
+      workOutId: todaysWorkout._id,
+      "stations.stationNumber": targetStationNumber,
+    });
+
     let workout = {
-      station: todaysWorkout.stations[stationIndex], //show specific station on each tab
+      station: {
+        ...todaysWorkout.stations[stationIndex],
+        completed: !!completedStations, // Mark station as completed if it exists in the log
+      },
       userId: user._id,
       weekNumber: weekNumber,
       programId: programId,
@@ -122,111 +134,76 @@ const userLoginToTab = async (req, res) => {
   }
 };
 
+
 const saveWorkout = async (req, res) => {
   try {
     const { workOutId, userId, station, weekNumber, programId } = req.body;
     const tabId = req.tabId;
+
     const tab = await Tab.findOne({ tabId });
     if (!tab) {
-      return res.status(500).json({ msg: "tab not found" });
+      return res.status(500).json({ msg: "Tab not found" });
     }
 
     if (tab.stationNumber !== station.stationNumber) {
       return res.status(500).json({
-        msg: `station Number : ${station.stationNumber} and  tab's station number :${tab.stationNumber} are not same`,
+        msg: `Station Number: ${station.stationNumber} and tab's station number: ${tab.stationNumber} are not the same`,
       });
     }
+
     const user = await User.findOne({ _id: userId });
     if (!user) {
-      return res.status(500).json({ msg: "user not found" });
+      return res.status(500).json({ msg: "User not found" });
     }
 
-    // fetch workout by id
+    // Fetch workout by ID
     const fetchedWorkOut = await findWorkOutById(workOutId, res);
     if (!fetchedWorkOut) {
       return res.status(500).json({ msg: "Workout not found" });
     }
 
-    // Find or create a placeholder workout log for the user
-    let workoutLog = await WorkoutLog.findOne({
-      userId,
-      workOutId,
-    });
+    // Find or create a workout log for the user
+    let workoutLog = await WorkoutLog.findOne({ userId, workOutId });
 
     if (!workoutLog) {
       workoutLog = new WorkoutLog({
         userId,
         programId,
         weekNumber,
-        workOutId, // Placeholder
+        workOutId,
         numberOfStations: fetchedWorkOut.workout.numberOfStations,
-        stations: [station],
+        stations: [],
         completed: false,
         completedAt: null,
       });
-
-      await workoutLog.save();
-      return res.status(200).json({ msg: "workout saved successfully" });
     }
 
-    const checkForSameStation = workoutLog.stations.find((std) => {
-      console.log(station.stationNumber, std.stationNumber);
-
-      return std.stationNumber === station.stationNumber;
-    });
-    if (checkForSameStation) {
-      return res.status(200).json({ msg: "station data already saved" });
+    // Check if the station has already been saved
+    const existingStation = workoutLog.stations.find(
+      (std) => std.stationNumber === station.stationNumber
+    );
+    if (existingStation) {
+      return res.status(200).json({ msg: "Station data already saved" });
     }
+
+    // Mark the station as complete and add it to the workout log
+    station.completed = true;
     workoutLog.stations.push(station);
-    if (workoutLog.stations.length > workoutLog.numberOfStations) {
-      return res
-        .status(500)
-        .json({ message: "Number of stations are more then specified" });
-    }
-    const previousWorkouts = await WorkoutLog.find({ userId, completed: true });
 
-    // Check if all stations have been filled
-    if (workoutLog.stations.length === workoutLog.numberOfStations) {
-      workoutLog.completed = true;
-      workoutLog.completedAt = Date.now(); // Set completion time
-      user.totalWorkouts += 1;
-
-      // Checking if the workout is in a new week
-      if (isNewWeek(user.lastWorkoutDate)) {
-        user.workoutsInWeek = 1; // Reset to 1 since this is the first workout of the week
-      } else {
-        user.workoutsInWeek += 1; // Incrementing the weekly count
-      }
-
-      // Updating streaks based on conditions
-      if (isPartOfStreak(user.lastWorkoutDate)) {
-        user.streaks += 1;
-        console.log("streak added");
-      } else {
-        user.streaks = 1; // Reset streak if there's a gap
-      }
-      user.lastWorkoutDate = new Date();
-
-      await user.save();
-      if (workoutLog.completed) {
-        await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
-        await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
-        await checkAndAddStreakAchievements(user._id, user.streaks);
-        await checkAndAddPersonalBestAwards({
-          userId: user._id,
-          newWorkout: workoutLog,
-          previousWorkouts,
-        });
-      }
-    }
+    // Save the updated workout log
     await workoutLog.save();
-    return res.status(200).json({ msg: "workout saved successfully" });
-  } catch (error) {
-    console.log(error);
 
-    res.status(500).json({ message: "Failed to add data to station" });
+    // Update user's workout metrics
+    user.lastWorkoutDate = new Date();
+    await user.save();
+
+    return res.status(200).json({ msg: "Station data saved successfully" });
+  } catch (error) {
+    console.error("Error saving workout:", error);
+    res.status(500).json({ message: "Failed to save station data" });
   }
 };
+
 
 const deleteTab = async (req, res) => {
   try {
