@@ -40,23 +40,30 @@ const startWorkOut = async (req, res) => {
   try {
     const { workOutId } = req.params;
 
-    //checking if user has already finished this workout
-    const alreadyFinished = await WorkOutLog.findOne({ workOutId });
-    if (alreadyFinished) {
-      return res
-        .status(500)
-        .json({ msg: "this workout has already been finished by user" });
-    }
     //finding workout by id
     const fetchedWorkout = await findWorkOutById(workOutId, res); //used helper created in utils/userWorkoutLog.js
     if (!fetchedWorkout) {
       return res.status(500).json({ msg: "Workout not found" });
     }
+    //checking if user has already finished this workout
+    const alreadyFinished = await WorkOutLog.findOne({ workOutId });
+    if (alreadyFinished) {
+      return res.status(200).json({
+        msg: "this workout has already been finished by user",
+        workout: alreadyFinished,
+        completed: true,
+        weekNumber: fetchedWorkout.weekNumber,
+        programTitle: fetchedWorkout.programTitle,
+        programId: fetchedWorkout.programId,
+      });
+    }
+
     res.status(200).json({
       workout: fetchedWorkout.workout,
       weekNumber: fetchedWorkout.weekNumber,
       programTitle: fetchedWorkout.programTitle,
       programId: fetchedWorkout.programId,
+      completed: false,
     });
   } catch (error) {
     console.error(error);
@@ -315,6 +322,62 @@ const getWeightData = async (req, res) => {
 };
 
 /*============  End of Get Weight Data  =============*/
+
+/*=============================================
+=                   Edit Completed Workout                   =
+=============================================*/
+
+const editCompletedWorkout = async (req, res) => {
+  const userId = req.user._id;
+  try {
+    const workOutId = req.params.workoutId;
+    const workout = await WorkOutLog.findOne({
+      userId,
+      workOutId,
+      completed: true,
+    });
+    console.log(workout);
+
+    if (!workout) {
+      return res
+        .status(404)
+        .json({ error: "No workout completed with this Id" });
+    }
+    const { numberOfStations, stations } = req.body;
+    if (!numberOfStations || !stations) {
+      return res.status(500).json({ error: "Must provide all field values" });
+    }
+    if (stations.length !== numberOfStations) {
+      return res.status(500).json({
+        error: `Stations ${stations.length} is not the same as numberOfStations ${numberOfStations}`,
+      });
+    }
+    //applying validation
+    for (const station of stations) {
+      if (!station.exerciseName) {
+        return res
+          .status(400)
+          .json({ message: "Exercise name is required for each station." });
+      }
+      if (!station.sets || station.sets.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Each station must have at least one set." });
+      }
+    }
+
+    workout.numberOfStations = numberOfStations;
+    workout.stations = stations;
+    await workout.save();
+    return res
+      .status(200)
+      .json({ msg: "workout updated successfully", workout });
+  } catch (error) {
+    return res.status(500).json({ msg: "unable to update workout" });
+  }
+};
+
+/*============  End of Edit Completed Workout  =============*/
 module.exports = {
   getCompletedWeeklyGoal,
   getTodaysWorkOut,
@@ -325,4 +388,5 @@ module.exports = {
   userCompletedWorkOuts,
   getUserAwAwards,
   getWeightData,
+  editCompletedWorkout,
 };

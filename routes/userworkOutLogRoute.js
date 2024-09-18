@@ -10,6 +10,7 @@ const {
   getUserTotalWorkouts,
   getWeightData,
   getCompletedWeeklyGoal,
+  editCompletedWorkout,
 } = require("../controllers/userworkOutLogController");
 const updateActiveStatus = require("../middleware/updateActiveStatus");
 
@@ -43,6 +44,14 @@ router.post(
   authMiddleWare,
   updateActiveStatus,
   setWeeklyGoal
+);
+
+//edit completed workout
+router.patch(
+  "/edit-workout/:workoutId",
+  authMiddleWare,
+  updateActiveStatus,
+  editCompletedWorkout
 );
 //get user completed workouts details and completion dates
 router.get(

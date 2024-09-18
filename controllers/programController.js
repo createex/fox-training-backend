@@ -1,35 +1,41 @@
-const { BlobServiceClient } = require('@azure/storage-blob');
+const { BlobServiceClient } = require("@azure/storage-blob");
 const Program = require("../models/program");
 const { loginUser } = require("./authController");
-const multer = require('multer');
-const path = require('path');
+const multer = require("multer");
+const path = require("path");
 require("dotenv").config();
 
 // Azure Blob Storage setup
-const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
-const containerClient = blobServiceClient.getContainerClient(process.env.AZURE_CONTAINER_NAME);
+const blobServiceClient = BlobServiceClient.fromConnectionString(
+  process.env.AZURE_STORAGE_CONNECTION_STRING
+);
+const containerClient = blobServiceClient.getContainerClient(
+  process.env.AZURE_CONTAINER_NAME
+);
 
 // Multer setup to store files in memory
-const storage = multer.memoryStorage(); 
+const storage = multer.memoryStorage();
 const upload = multer({
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: function (req, file, cb) {
-        const filetypes = /jpeg|jpg|png|gif/;
-        const mimetype = filetypes.test(file.mimetype);
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png|gif/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(
+      path.extname(file.originalname).toLowerCase()
+    );
 
-        if (mimetype && extname) {
-            return cb(null, true);
-        }
-        cb(new Error('Only images are allowed'));
+    if (mimetype && extname) {
+      return cb(null, true);
     }
-}).single('image'); // Adjust the field name as per your form
+    cb(new Error("Only images are allowed"));
+  },
+}).single("image"); // Adjust the field name as per your form
 
 async function uploadToAzureBlob(fileBuffer, fileName) {
-    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
-    await blockBlobClient.uploadData(fileBuffer);
-    return blockBlobClient.url;
+  const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+  await blockBlobClient.uploadData(fileBuffer);
+  return blockBlobClient.url;
 }
 // Add a new program with default weeks
 const addProgram = async (req, res) => {
@@ -222,11 +228,11 @@ const updateWorkoutInWeek = async (req, res) => {
       throw new Error("Workout not found");
     }
     await program.save();
-    res.status(200).json({ message: "Workout updated successfully" });
+    return res.status(200).json({ message: "Workout updated successfully" });
   } catch (error) {
     console.log(error);
 
-    res.status(500).json({ message: "Error updating workout", error });
+    return res.status(500).json({ message: "Error updating workout", error });
   }
 };
 
@@ -234,26 +240,44 @@ const updateWorkoutInWeek = async (req, res) => {
 
 // Delete a workout from a specific week
 const deleteWorkoutFromWeek = async (req, res) => {
-  const { programId, weekNumber, workoutIndex } = req.params;
+  const { programId, workoutId } = req.params;
 
   try {
+    // Find the program by its ID
     const program = await Program.findById(programId);
     if (!program) {
       return res.status(404).json({ message: "Program not found" });
     }
 
-    const week = program.weeks.find(
-      (w) => w.weekNumber === parseInt(weekNumber)
-    );
-    if (!week || !week.workouts[workoutIndex]) {
+    let workoutDeleted = false;
+
+    // Iterate over each week in the program
+    for (const week of program.weeks) {
+      // Find the index of the workout by its ID
+      const workoutIndex = week.workouts.findIndex(
+        (w) => w._id.toString() === workoutId
+      );
+
+      // If the workout is found, remove it from the array
+      if (workoutIndex !== -1) {
+        week.workouts.splice(workoutIndex, 1); // Remove the workout
+        workoutDeleted = true;
+        break; // Stop searching once the workout is found and deleted
+      }
+    }
+
+    if (!workoutDeleted) {
       return res.status(404).json({ message: "Workout not found" });
     }
 
-    week.workouts.splice(workoutIndex, 1);
+    // Save the updated program
     await program.save();
-    res.status(200).json({ message: "Workout deleted successfully", program });
+
+    // Send response after successful deletion
+    return res.status(200).json({ message: "Workout deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting workout", error });
+    console.log(error);
+    return res.status(500).json({ message: "Error deleting workout", error });
   }
 };
 
@@ -480,7 +504,7 @@ module.exports = {
   updateProgram,
   deleteProgram,
   addWorkoutToWeek,
-  addWorkoutImage:[upload,addWorkoutImage],
+  addWorkoutImage: [upload, addWorkoutImage],
   updateWorkoutInWeek,
   deleteWorkoutFromWeek,
   addStationToWorkout,
