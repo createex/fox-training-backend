@@ -62,6 +62,10 @@ const workoutSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  duration: {
+    type: Number, // Store the duration in minutes
+    min: [1, "Workout duration must be at least 1 minute"],
+  },
 });
 
 // Schema for each week
@@ -85,6 +89,10 @@ const programSchema = new mongoose.Schema({
     required: true,
   },
   startDate: {
+    type: Date,
+    required: true,
+  },
+  endDate: {
     type: Date,
     required: true,
   },

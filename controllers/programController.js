@@ -39,7 +39,7 @@ async function uploadToAzureBlob(fileBuffer, fileName) {
 }
 // Add a new program with default weeks
 const addProgram = async (req, res) => {
-  const { title, startDate } = req.body;
+  const { title, startDate, endDate } = req.body;
 
   // Define default weeks structure
   const defaultWeeks = [
@@ -65,6 +65,7 @@ const addProgram = async (req, res) => {
     const newProgram = new Program({
       title,
       startDate,
+      endDate,
       weeks: defaultWeeks, // Add default weeks
     });
 
@@ -141,7 +142,9 @@ const addWorkoutToWeek = async (req, res) => {
     if (!program) {
       return res.status(404).json({ message: "Program not found" });
     }
-
+    if (!workout.duration) {
+      return res.status(400).json({ error: "Duration is required" });
+    }
     const week = program.weeks.find((w) => w.weekNumber === weekNumber);
     if (!week) {
       return res.status(404).json({ message: "Week not found" });

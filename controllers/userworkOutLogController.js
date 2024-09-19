@@ -149,27 +149,62 @@ const finishWorkOut = async (req, res) => {
 /*=============================================
 =                   user completed workouts                   =
 =============================================*/
+// const userCompletedWorkOuts = async (req, res) => {
+//   try {
+//     const userId = req.user._id;
+//     const completedWorkOuts = await WorkOutLog.find({
+//       userId,
+//       completed: true,
+//     }).sort({ completedAt: 1 });
+//     console.log(completedWorkOuts);
+
+//     const dates = completedWorkOuts.map((logs) =>
+//       moment(logs.completedAt).format("DD-MM-YYYY")
+//     );
+
+//     //return workouts completed by user
+//     res.status(200).json({
+//       completionDates: dates,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ msg: "error finding user workOuts", error });
+//   }
+// };
 const userCompletedWorkOuts = async (req, res) => {
   try {
     const userId = req.user._id;
     const completedWorkOuts = await WorkOutLog.find({
       userId,
       completed: true,
-    }).sort({ completedAt: 1 });
+    })
+      .populate("programId") // Populates the related Program document
+      .sort({ completedAt: 1 });
 
-    const dates = completedWorkOuts.map((logs) =>
-      moment(logs.completedAt).format("DD-MM-YYYY")
-    );
+    // // If no workouts found, return empty response
+    if (!completedWorkOuts.length) {
+      return res.status(404).json({ msg: "No completed workouts found" });
+    }
+    const filteredForNull = completedWorkOuts.filter((workout) => {
+      return workout.programId !== null;
+    });
 
-    //return workouts completed by user
+    // Create an array of completed workout data including program start/end dates
+    const workoutData = filteredForNull.map((log) => ({
+      completedDate: moment(log.completedAt).format("DD-MM-YYYY"),
+      programStartDate: moment(log.programId.startDate).format("DD-MM-YYYY"),
+      programEndDate: moment(log.programId.endDate).format("DD-MM-YYYY"),
+    }));
+
+    // // Return the formatted workout data
     res.status(200).json({
-      completionDates: dates,
+      workouts: workoutData,
     });
   } catch (error) {
-    res.status(500).json({ msg: "error finding user workOuts", error });
+    console.log(error);
+
+    res.status(500).json({ msg: "Error finding user workouts", error });
   }
 };
-
 /*============  End of user completed workouts  =============*/
 
 /*=============================================
