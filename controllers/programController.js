@@ -4,6 +4,7 @@ const { loginUser } = require("./authController");
 const multer = require("multer");
 const path = require("path");
 require("dotenv").config();
+const { findWorkOutById } = require("../utils/userWorkOutLog");
 
 // Azure Blob Storage setup
 const blobServiceClient = BlobServiceClient.fromConnectionString(
@@ -500,6 +501,22 @@ const addWorkoutImage = async (req, res) => {
   }
 };
 
+/* =====================================
+=               Get Workout By Id                =
+===================================== */
+
+const getWrokoutById = async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+    const fetchedWorkout = await findWorkOutById(workoutId);
+    res.status(200).json(fetchedWorkout);
+  } catch (error) {
+    res.status(500).json({ message: "Error Getting workout" });
+  }
+};
+
+/* ========= End of Get Workout By Id ========= */
+
 // Export all functions at once
 module.exports = {
   addProgram,
@@ -517,4 +534,5 @@ module.exports = {
   updateSetInStation,
   deleteSetFromStation,
   getProgramWorkouts,
+  getWrokoutById,
 };

@@ -24,6 +24,8 @@ router.put(
   "/:programId/workout/:workoutId",
   programController.updateWorkoutInWeek
 );
+//get workout by id
+router.get("/workout/:workoutId", programController.getWrokoutById);
 
 // Route to delete a workout from a specific week
 router.delete(
