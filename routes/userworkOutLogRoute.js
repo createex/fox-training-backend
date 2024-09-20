@@ -55,7 +55,7 @@ router.patch(
 );
 //get user completed workouts details and completion dates
 router.get(
-  "/completed-dates",
+  "/completed-dates/:programId",
   authMiddleWare,
   updateActiveStatus,
   userCompletedWorkOuts

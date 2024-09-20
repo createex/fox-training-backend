@@ -149,62 +149,34 @@ const finishWorkOut = async (req, res) => {
 /*=============================================
 =                   user completed workouts                   =
 =============================================*/
-// const userCompletedWorkOuts = async (req, res) => {
-//   try {
-//     const userId = req.user._id;
-//     const completedWorkOuts = await WorkOutLog.find({
-//       userId,
-//       completed: true,
-//     }).sort({ completedAt: 1 });
-//     console.log(completedWorkOuts);
-
-//     const dates = completedWorkOuts.map((logs) =>
-//       moment(logs.completedAt).format("DD-MM-YYYY")
-//     );
-
-//     //return workouts completed by user
-//     res.status(200).json({
-//       completionDates: dates,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ msg: "error finding user workOuts", error });
-//   }
-// };
 const userCompletedWorkOuts = async (req, res) => {
   try {
     const userId = req.user._id;
+    const programId = req.params.programId;
     const completedWorkOuts = await WorkOutLog.find({
       userId,
       completed: true,
-    })
-      .populate("programId") // Populates the related Program document
-      .sort({ completedAt: 1 });
+      programId,
+    }).sort({ completedAt: 1 });
 
-    // // If no workouts found, return empty response
-    if (!completedWorkOuts.length) {
-      return res.status(404).json({ msg: "No completed workouts found" });
-    }
-    const filteredForNull = completedWorkOuts.filter((workout) => {
-      return workout.programId !== null;
-    });
-
-    // Create an array of completed workout data including program start/end dates
-    const workoutData = filteredForNull.map((log) => ({
-      completedDate: moment(log.completedAt).format("DD-MM-YYYY"),
-      programStartDate: moment(log.programId.startDate).format("DD-MM-YYYY"),
-      programEndDate: moment(log.programId.endDate).format("DD-MM-YYYY"),
-    }));
-
-    // // Return the formatted workout data
+    const dates = completedWorkOuts.map((logs) =>
+      moment(logs.completedAt).format("DD-MM-YYYY")
+    );
+    const program = await Program.findOne({ _id: programId });
+    //return workouts completed by user
     res.status(200).json({
-      workouts: workoutData,
+      completionDates: dates,
+      programDates: {
+        startDate: program.startDate,
+        endDate: program.endDate,
+      },
     });
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({ msg: "Error finding user workouts", error });
+    res.status(500).json({ msg: "error finding user workOuts", error });
   }
 };
+
 /*============  End of user completed workouts  =============*/
 
 /*=============================================
