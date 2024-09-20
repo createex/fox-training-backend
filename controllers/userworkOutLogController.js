@@ -159,6 +159,9 @@ const userCompletedWorkOuts = async (req, res) => {
       programId,
     }).sort({ completedAt: 1 });
 
+    if (completedWorkOuts.length == 0) {
+      return res.status(404).json({ msg: "No  completed workouts found" });
+    }
     const dates = completedWorkOuts.map((logs) =>
       moment(logs.completedAt).format("DD-MM-YYYY")
     );
