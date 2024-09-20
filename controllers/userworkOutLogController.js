@@ -153,30 +153,42 @@ const userCompletedWorkOuts = async (req, res) => {
   try {
     const userId = req.user._id;
     const programId = req.params.programId;
+
+    // Fetch completed workouts for the user and program
     const completedWorkOuts = await WorkOutLog.find({
       userId,
       completed: true,
       programId,
     }).sort({ completedAt: 1 });
 
-    if (completedWorkOuts.length == 0) {
-      return res.status(404).json({ msg: "No  completed workouts found" });
+    // If no workouts are found
+    if (completedWorkOuts.length === 0) {
+      return res.status(404).json({ msg: "No completed workouts found" });
     }
+
+    // Map completion dates formatted as 'DD-MM-YYYY'
     const dates = completedWorkOuts.map((logs) =>
       moment(logs.completedAt).format("DD-MM-YYYY")
     );
+
+    // Fetch the program to get start and end dates
     const program = await Program.findOne({ _id: programId });
-    //return workouts completed by user
+
+    // Format startDate and endDate to display like 'Sep 19' without the year
+    const formattedStartDate = moment(program.startDate).format("MMM D");
+    const formattedEndDate = moment(program.endDate).format("MMM D");
+
+    // Return workouts completion dates and formatted program dates
     res.status(200).json({
       completionDates: dates,
       programDates: {
-        startDate: program.startDate,
-        endDate: program.endDate,
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
       },
     });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ msg: "error finding user workOuts", error });
+    res.status(500).json({ msg: "Error finding user workouts", error });
   }
 };
 
