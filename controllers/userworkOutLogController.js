@@ -153,18 +153,12 @@ const userCompletedWorkOuts = async (req, res) => {
   try {
     const userId = req.user._id;
     const programId = req.params.programId;
-
     // Fetch completed workouts for the user and program
     const completedWorkOuts = await WorkOutLog.find({
       userId,
       completed: true,
       programId,
     }).sort({ completedAt: 1 });
-
-    // If no workouts are found
-    if (completedWorkOuts.length === 0) {
-      return res.status(404).json({ msg: "No completed workouts found" });
-    }
 
     // Map completion dates formatted as 'DD-MM-YYYY'
     const dates = completedWorkOuts.map((logs) =>
