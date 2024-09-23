@@ -59,6 +59,40 @@ const isPartOfStreak = (lastWorkoutDate) => {
   return diffInDays;
 };
 
+const updateUserStreak = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+    const currentDate = moment();
+    const endOfCurrentWeek = moment().endOf("isoWeek"); // End of the current week
+    const startOfCurrentWeek = moment().startOf("isoWeek"); // Start of the current week
+
+    // Only update if the current date is after the end of the current week
+    if (currentDate.isAfter(endOfCurrentWeek)) {
+      const completedWorkouts = await WorkoutLog.find({
+        userId: userId,
+        completed: true,
+        completedAt: {
+          $gte: startOfCurrentWeek.toDate(),
+          $lt: endOfCurrentWeek.toDate(),
+        },
+      });
+
+      // Check if the completed workouts meet the user's weekly goal
+      if (completedWorkouts.length >= user.weeklyWorkOutGoal) {
+        user.streaks += 1; // Increment streak
+      } else {
+        user.streaks = 0; // Reset streak if goal not met
+      }
+
+      // Update last workout date
+      user.lastWorkoutDate = currentDate.toDate();
+      await user.save();
+    }
+  } catch (error) {
+    console.error("Error updating user streak:", error);
+  }
+};
+
 const addAchievement = async (userId, newAchievement) => {
   try {
     const userAcheivements = await Acheivements.find({ userId: userId });
@@ -321,4 +355,5 @@ module.exports = {
   fetchUserTodaysWorkout,
   getTimeFilter,
   fetchWeightData,
+  updateUserStreak,
 };

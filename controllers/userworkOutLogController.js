@@ -13,6 +13,7 @@ const {
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
   fetchWeightData,
+  updateUserStreak,
 } = require("../utils/userWorkOutLog");
 const UserAcheivements = require("../models/userAcheivements");
 
@@ -118,13 +119,7 @@ const finishWorkOut = async (req, res) => {
       user.workoutsInWeek += 1; // Incrementing the weekly count
     }
 
-    // Updating streaks based on conditions
-    if (isPartOfStreak(user.lastWorkoutDate)) {
-      user.streaks += 1;
-      console.log("streak added");
-    } else {
-      user.streaks = 1; // Reset streak if there's a gap
-    }
+    await updateUserStreak(user._id);
     user.lastWorkoutDate = new Date();
 
     await user.save();

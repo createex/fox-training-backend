@@ -14,6 +14,7 @@ const {
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
+  updateUserStreak,
 } = require("../utils/userWorkOutLog");
 
 const createTab = async (req, res) => {
@@ -134,7 +135,6 @@ const userLoginToTab = async (req, res) => {
   }
 };
 
-
 const saveWorkout = async (req, res) => {
   try {
     const { workOutId, userId, station, weekNumber, programId } = req.body;
@@ -189,12 +189,34 @@ const saveWorkout = async (req, res) => {
     // Mark the station as complete and add it to the workout log
     station.completed = true;
     workoutLog.stations.push(station);
+    if (workoutLog.stations.length === workoutLog.numberOfStations) {
+      workoutLog.completed = true;
+      // Incrementing total workouts
+      user.totalWorkouts += 1;
+
+      // Checking if the workout is in a new week
+      if (isNewWeek(user.lastWorkoutDate)) {
+        user.workoutsInWeek = 1; // Reset to 1 since this is the first workout of the week
+      } else {
+        user.workoutsInWeek += 1; // Incrementing the weekly count
+      }
+
+      await updateUserStreak(user._id);
+      user.lastWorkoutDate = new Date();
+
+      await user.save();
+      await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
+      await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
+      await checkAndAddStreakAchievements(user._id, user.streaks);
+      await checkAndAddPersonalBestAwards({
+        userId: user._id,
+        newWorkout,
+        previousWorkouts,
+      });
+    }
 
     // Save the updated workout log
     await workoutLog.save();
-
-    // Update user's workout metrics
-    user.lastWorkoutDate = new Date();
     await user.save();
 
     return res.status(200).json({ msg: "Station data saved successfully" });
@@ -203,7 +225,6 @@ const saveWorkout = async (req, res) => {
     res.status(500).json({ message: "Failed to save station data" });
   }
 };
-
 
 const deleteTab = async (req, res) => {
   try {
