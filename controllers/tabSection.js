@@ -102,8 +102,6 @@ const userLoginToTab = async (req, res) => {
 
     // Check if the station has already been saved
     let existingStation = null;
-    console.log(workoutLog);
-
     for (const log of workoutLog) {
       // Exit the loop if a completed station is found
       if (
@@ -123,7 +121,13 @@ const userLoginToTab = async (req, res) => {
     if (existingStation) {
       return res.status(200).json({
         message: "Station data already saved",
-        workout: existingStation,
+        workout: {
+          station: existingStation,
+          userId: user._id,
+          weekNumber: weekNumber,
+          programId: programId,
+          workOutId: todaysWorkout._id,
+        },
       });
     }
 
