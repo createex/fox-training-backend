@@ -260,7 +260,7 @@ const fetchUserTodaysWorkout = async (res) => {
   }).lean();
 
   if (!program) {
-    return res.status(404).json({ message: "No workout found for today" });
+    throw new Error("No workout found for today");
   }
 
   // Initialize a variable to store today's workout details
@@ -282,7 +282,7 @@ const fetchUserTodaysWorkout = async (res) => {
   }
 
   if (!todaysWorkout) {
-    return res.status(404).json({ message: "No workout found for today" });
+    throw new Error("No workout found for today");
   }
 
   // Return the program ID, week number, and today's workout

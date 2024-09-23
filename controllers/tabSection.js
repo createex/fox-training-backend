@@ -161,7 +161,7 @@ const saveWorkout = async (req, res) => {
     if (!fetchedWorkOut) {
       return res.status(500).json({ msg: "Workout not found" });
     }
-
+    const previousWorkouts = await WorkoutLog.find({ userId, completed: true });
     // Find or create a workout log for the user
     let workoutLog = await WorkoutLog.findOne({ userId, workOutId });
 
@@ -210,7 +210,7 @@ const saveWorkout = async (req, res) => {
       await checkAndAddStreakAchievements(user._id, user.streaks);
       await checkAndAddPersonalBestAwards({
         userId: user._id,
-        newWorkout,
+        newWorkout: workoutLog,
         previousWorkouts,
       });
     }
@@ -222,7 +222,9 @@ const saveWorkout = async (req, res) => {
     return res.status(200).json({ msg: "Station data saved successfully" });
   } catch (error) {
     console.error("Error saving workout:", error);
-    res.status(500).json({ message: "Failed to save station data" });
+    res
+      .status(500)
+      .json({ message: "Failed to save station data", error: error.message });
   }
 };
 

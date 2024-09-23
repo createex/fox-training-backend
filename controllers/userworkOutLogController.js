@@ -6,7 +6,6 @@ const mongoose = require("mongoose");
 const {
   findWorkOutById,
   isNewWeek,
-  isPartOfStreak,
   checkAndAddStreakAchievements,
   checkAndAddWeeklyAchievements,
   checkAndAddWorkoutAchievements,
@@ -25,9 +24,9 @@ const getTodaysWorkOut = async (req, res) => {
     const { workout, programId } = await fetchUserTodaysWorkout(res);
     // console.log(workout);
 
-    res.status(200).json({ workout: workout, programId: programId });
+    return res.status(200).json({ workout: workout, programId: programId });
   } catch (error) {
-    res.status(500).json({ msg: "unable to find workout" });
+    res.status(500).json({ msg: error.message || "unable to find workout" });
   }
 };
 /*============  End of Get Todays Workout  =============*/
