@@ -1,30 +1,100 @@
 const User = require("../models/user");
 const userAcheivements = require("../models/userAcheivements");
+const WorkoutLog = require("../models/userWorkOutLog");
 const moment = require("moment");
+
+// const topWinUsers = async (req, res) => {
+//   try {
+//     const limit = parseInt(req.query.limit) || 10;
+
+//     // Aggregation pipeline to find top users by totalWorkouts
+//     const topUsers = await User.aggregate([
+//       {
+//         $sort: { totalWorkouts: -1 },
+//       },
+//       {
+//         $limit: limit,
+//       },
+//       {
+//         $project: {
+//           email: 1,
+//           totalWorkouts: 1,
+//           username: 1,
+//         },
+//       },
+//     ]);
+//     return res.status(200).json(topUsers);
+//   } catch (error) {
+//     return res.status(500).json({ msg: "Error Finding Top Winners", error });
+//   }
+// };
 
 const topWinUsers = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 5; // Default to 5 users
+    const timePeriod = req.query.timePeriod || "1_week"; // Default to 1 week
 
-    // Aggregation pipeline to find top users by totalWorkouts
-    const topUsers = await User.aggregate([
+    let dateFilter = {};
+
+    // Set date filter based on time period
+    if (timePeriod === "1_week") {
+      dateFilter = {
+        completedAt: { $gte: moment().subtract(1, "weeks").toDate() },
+      };
+    } else if (timePeriod === "1_month") {
+      dateFilter = {
+        completedAt: { $gte: moment().subtract(1, "months").toDate() },
+      };
+    } else if (timePeriod === "1_year") {
+      dateFilter = {
+        completedAt: { $gte: moment().subtract(1, "years").toDate() },
+      };
+    }
+
+    // Aggregation pipeline to find top users by completed workouts
+    const topUsers = await WorkoutLog.aggregate([
       {
-        $sort: { totalWorkouts: -1 },
+        $match: {
+          completed: true, // Only count completed workouts
+          ...dateFilter, // Filter by the selected time period
+        },
       },
       {
-        $limit: limit,
+        $group: {
+          _id: "$userId", // Group by userId
+          completedWorkouts: { $sum: 1 }, // Count completed workouts for each user
+        },
+      },
+      {
+        $sort: { completedWorkouts: -1 }, // Sort by number of completed workouts (highest first)
+      },
+      {
+        $limit: limit, // Limit the result set to the top users
+      },
+      {
+        $lookup: {
+          from: "users", // Lookup user details from the User collection
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $unwind: "$user", // Unwind the user array
       },
       {
         $project: {
-          email: 1,
-          totalWorkouts: 1,
-          username: 1,
+          username: "$user.username", // Include username
+          email: "$user.email", // Include email
+          totalWorkouts: "$completedWorkouts", // Include completed workouts count
         },
       },
     ]);
+
     return res.status(200).json(topUsers);
   } catch (error) {
-    return res.status(500).json({ msg: "Error Finding Top Winners", error });
+    console.log(error);
+    return res.status(500).json({ msg: "Error Finding Top Users", error });
   }
 };
 
