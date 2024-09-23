@@ -46,7 +46,10 @@ const startWorkOut = async (req, res) => {
       return res.status(500).json({ msg: "Workout not found" });
     }
     //checking if user has already finished this workout
-    const alreadyFinished = await WorkOutLog.findOne({ workOutId });
+    const alreadyFinished = await WorkOutLog.findOne({
+      workOutId,
+      userId: req.user._id,
+    });
     if (alreadyFinished) {
       return res.status(200).json({
         msg: "this workout has already been finished by user",

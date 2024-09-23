@@ -270,6 +270,18 @@ const changePassword = async (req, res) => {
   }
 };
 
+const getAllUsernames = async (req, res) => {
+  try {
+    const users = await User.find();
+    const usernames = users.map((user) => {
+      return user.username;
+    });
+    res.status(200).json(usernames);
+  } catch (error) {
+    return res.status(500).json({ msg: "unable to get usernames" });
+  }
+};
+
 module.exports = {
   createTab,
   loginToTab,
@@ -278,4 +290,5 @@ module.exports = {
   deleteTab,
   changePassword,
   getAllTabs,
+  getAllUsernames,
 };
