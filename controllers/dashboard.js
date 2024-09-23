@@ -45,10 +45,9 @@ const topWinUsers = async (req, res) => {
       dateFilter = {
         completedAt: { $gte: moment().subtract(1, "months").toDate() },
       };
-    } else if (timePeriod === "1_year") {
-      dateFilter = {
-        completedAt: { $gte: moment().subtract(1, "years").toDate() },
-      };
+    } else if (timePeriod === "all_time") {
+      // No date filter for all time
+      dateFilter = {};
     }
 
     // Aggregation pipeline to find top users by completed workouts
