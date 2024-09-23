@@ -91,6 +91,7 @@ const userLoginToTab = async (req, res) => {
     // Associate user with tab session
     tab.loggedInUser = user._id;
     await tab.save();
+    const workoutLog = await WorkoutLog.find({ userId: user._id });
 
     // Fetch today's workout details
     const {
@@ -98,6 +99,33 @@ const userLoginToTab = async (req, res) => {
       programId,
       weekNumber,
     } = await fetchUserTodaysWorkout(res);
+
+    // Check if the station has already been saved
+    let existingStation = null;
+    console.log(workoutLog);
+
+    for (const log of workoutLog) {
+      // Exit the loop if a completed station is found
+      if (
+        log.workOutId.toString() === todaysWorkout._id.toString() &&
+        log.programId.toString() === programId.toString() &&
+        log.userId.toString() === user._id.toString()
+      ) {
+        existingStation = log.stations.find(
+          (station) =>
+            station.completed === true &&
+            station.stationNumber === tab.stationNumber
+        );
+        if (existingStation) break;
+      }
+    }
+
+    if (existingStation) {
+      return res.status(200).json({
+        message: "Station data already saved",
+        workout: existingStation,
+      });
+    }
 
     // Access the stations array
     const stations = todaysWorkout.stations;
@@ -180,7 +208,8 @@ const saveWorkout = async (req, res) => {
 
     // Check if the station has already been saved
     const existingStation = workoutLog.stations.find(
-      (std) => std.stationNumber === station.stationNumber
+      (std) =>
+        std.stationNumber === station.stationNumber && std.completed == true
     );
     if (existingStation) {
       return res.status(200).json({ msg: "Station data already saved" });
