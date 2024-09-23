@@ -276,7 +276,7 @@ const getAllUsernames = async (req, res) => {
     const usernames = users.map((user) => {
       return user.username;
     });
-    res.status(200).json(usernames);
+    res.status(200).json({ usernames: usernames });
   } catch (error) {
     return res.status(500).json({ msg: "unable to get usernames" });
   }
