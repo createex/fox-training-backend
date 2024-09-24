@@ -15,6 +15,7 @@ const {
   updateUserStreak,
 } = require("../utils/userWorkOutLog");
 const UserAcheivements = require("../models/userAcheivements");
+const ExercisesNames = require("../models/exerciesNames");
 
 /*=============================================
 =                   Get Todays Workout                   =
@@ -391,6 +392,23 @@ const editCompletedWorkout = async (req, res) => {
 };
 
 /*============  End of Edit Completed Workout  =============*/
+
+/* =====================================
+=               Get Exercises Names                =
+===================================== */
+const getExercisesNames = async (req, res) => {
+  try {
+    const exercises = await ExercisesNames.find().select("name -_id"); // Get only the name field
+    const exercisesNames = exercises.map((exer) => {
+      return exer.name;
+    });
+    res.json({ exercises: exercisesNames });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch exercises" });
+  }
+};
+
+/* ========= End of Get Exercises Names  ========= */
 module.exports = {
   getCompletedWeeklyGoal,
   getTodaysWorkOut,
@@ -402,4 +420,5 @@ module.exports = {
   getUserAwAwards,
   getWeightData,
   editCompletedWorkout,
+  getExercisesNames,
 };

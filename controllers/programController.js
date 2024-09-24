@@ -5,6 +5,7 @@ const multer = require("multer");
 const path = require("path");
 require("dotenv").config();
 const { findWorkOutById } = require("../utils/userWorkOutLog");
+const ExercisesNames = require("../models/exerciesNames");
 
 // Azure Blob Storage setup
 const blobServiceClient = BlobServiceClient.fromConnectionString(
@@ -181,6 +182,23 @@ const addWorkoutToWeek = async (req, res) => {
     // If all validations pass, push the workout into the week's workouts
     week.workouts.push(workout);
     await program.save();
+
+    //--------------------------  EXTRACTING EXERCIES NAMES FOR SEARCH OPERATION AT FRONTEND   --------------------
+    //add exercise name to schema
+    const exerciseNames = workout.stations.map(
+      (station) => station.exerciseName
+    );
+    // Use a loop to insert each exercise name if it doesn't exist
+    for (const name of exerciseNames) {
+      await ExercisesNames.updateOne(
+        { name }, // Check if the name already exists
+        { name }, // If not, insert it
+        { upsert: true } // Create if not found
+      );
+    }
+    console.log("Exercise names stored successfully.");
+
+    //================================================================================================================
     res.status(201).json({ message: "Workout added successfully", program });
   } catch (error) {
     res.status(500).json({ message: "Error adding workout", error });
