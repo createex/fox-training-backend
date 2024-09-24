@@ -408,6 +408,50 @@ const getExercisesNames = async (req, res) => {
   }
 };
 
+const getExerciseByName = async (req, res) => {
+  try {
+    const { name } = req.query;
+    const userId = req.user._id;
+
+    if (!name) {
+      return res.status(400).json({ error: "Please provide  exercise name" });
+    }
+
+    // Perform a search in workoutLog based on userId and exerciseName (case-insensitive)
+    const workoutLogs = await WorkOutLog.find({
+      userId,
+      stations: {
+        $elemMatch: {
+          exerciseName: { $regex: name, $options: "i" }, // Case-insensitive search for exercise name
+        },
+      },
+    }).select("stations.exerciseName completedAt stations.sets -_id"); // Return stations that contain the exercise name
+
+    // Filter out only the stations that match the exercise name
+    const results = workoutLogs.flatMap((log) =>
+      log.stations
+        .filter((station) =>
+          station.exerciseName.toLowerCase().includes(name.toLowerCase())
+        )
+        .map((station) => ({
+          station, // Include all station data
+          completedAt: log.completedAt, // Include completion date from workoutLog
+        }))
+    );
+
+    if (results.length === 0) {
+      return res
+        .status(404)
+        .json({ error: "No stations found with the given exercise name" });
+    }
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error("Error searching stations:", error);
+    res.status(500).json({ error: "Failed to search completed exercises" });
+  }
+};
+
 /* ========= End of Get Exercises Names  ========= */
 module.exports = {
   getCompletedWeeklyGoal,
@@ -421,4 +465,5 @@ module.exports = {
   getWeightData,
   editCompletedWorkout,
   getExercisesNames,
+  getExerciseByName,
 };
