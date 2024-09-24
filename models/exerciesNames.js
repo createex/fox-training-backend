@@ -1,20 +1,30 @@
 const mongoose = require("mongoose");
 
-// Schema for exercise names
-const exerciseNameSchema = new mongoose.Schema({
-  name: {
+const exerciseSchema = new mongoose.Schema({
+  exerciseName: {
     type: String,
     required: true,
-    unique: true, // Ensures exercise names are unique
-    trim: true,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
+  sets: [
+    {
+      level: {
+        type: String,
+        enum: ["Beginner", "Intermediate", "Advanced"],
+        required: true,
+      },
+      value: {
+        type: Number,
+        required: true,
+      }, // reps, time, or distance value
+      measurementType: {
+        type: String,
+        enum: ["Reps", "Time", "Distance"],
+        required: true,
+      },
+    },
+  ],
 });
 
-// Create a model for exercise names
-const ExerciseName = mongoose.model("ExerciseName", exerciseNameSchema);
+const Exercise = mongoose.model("Exercise", exerciseSchema);
 
-module.exports = ExerciseName;
+module.exports = Exercise;

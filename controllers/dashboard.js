@@ -2,6 +2,7 @@ const User = require("../models/user");
 const userAcheivements = require("../models/userAcheivements");
 const WorkoutLog = require("../models/userWorkOutLog");
 const moment = require("moment");
+const ExerciseName = require("../models/exerciesNames");
 
 // const topWinUsers = async (req, res) => {
 //   try {
@@ -215,9 +216,63 @@ const userRecentAcheivement = async (req, res) => {
   }
 };
 
+const addExercise = async (req, res) => {
+  const { exerciseName, sets } = req.body;
+
+  try {
+    // Validate that name and sets are provided
+    if (!exerciseName || !sets || sets.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Exercise name and sets are required" });
+    }
+
+    // Check if all sets have the same measurementType
+    const firstMeasurementType = sets[0].measurementType; // Get the measurementType of the first set
+    const allSameMeasurementType = sets.every(
+      (set) => set.measurementType === firstMeasurementType
+    );
+
+    if (!allSameMeasurementType) {
+      return res.status(400).json({
+        error:
+          "All sets must have the same measurement type (e.g., all 'Reps', 'Time', or 'Distance').",
+      });
+    }
+
+    // Create and save the new exercise
+    const newExercise = new ExerciseName({ exerciseName, sets });
+    await newExercise.save();
+
+    res
+      .status(201)
+      .json({ message: "Exercise added successfully", exercise: newExercise });
+  } catch (error) {
+    res.status(500).json({ error: "Error adding exercise", details: error });
+  }
+};
+
+const getAllExercise = async (req, res) => {
+  try {
+    // Fetch all exercises from the database
+    const exercises = await ExerciseName.find({});
+
+    if (!exercises || exercises.length === 0) {
+      return res.status(404).json({ message: "No exercises found" });
+    }
+
+    res.status(200).json({ exercises });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Error fetching exercises", details: error.message });
+  }
+};
 module.exports = {
   topWinUsers,
   userWeeklyWorkoutGoal,
   getAllUsers,
   userRecentAcheivement,
+  addExercise,
+  getAllExercise,
 };

@@ -2,16 +2,15 @@ const mongoose = require("mongoose");
 
 // Schema for individual sets
 const setSchema = new mongoose.Schema({
-  previous: {
-    type: Number,
+  level: {
+    type: String,
+    enum: ["Beginner", "Intermediate", "Advanced"],
     required: true,
   },
-  lbs: {
-    type: Number,
-    required: true,
-  },
-  reps: {
-    type: Number,
+  value: { type: Number, required: true }, // reps, time, or distance value
+  measurementType: {
+    type: String,
+    enum: ["Reps", "Time", "Distance"],
     required: true,
   },
 });

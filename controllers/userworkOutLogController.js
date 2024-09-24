@@ -398,9 +398,9 @@ const editCompletedWorkout = async (req, res) => {
 ===================================== */
 const getExercisesNames = async (req, res) => {
   try {
-    const exercises = await ExercisesNames.find().select("name -_id"); // Get only the name field
+    const exercises = await ExercisesNames.find().select("exerciseName -_id"); // Get only the name field
     const exercisesNames = exercises.map((exer) => {
-      return exer.name;
+      return exer.exerciseName;
     });
     res.json({ exercises: exercisesNames });
   } catch (error) {
