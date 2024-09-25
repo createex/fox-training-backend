@@ -3,6 +3,7 @@ const Program = require("../models/program");
 const { loginUser } = require("./authController");
 const multer = require("multer");
 const path = require("path");
+const moment = require("moment");
 require("dotenv").config();
 const { findWorkOutById } = require("../utils/userWorkOutLog");
 const ExercisesNames = require("../models/exerciesNames");
@@ -44,15 +45,17 @@ const addProgram = async (req, res) => {
   const { title, startDate, endDate } = req.body;
 
   // Check if startDate and endDate are valid and not in the past
-  const currentDate = new Date();
+  const currentDate = moment().startOf("day"); // Get the start of the current day (midnight)
+  const normalizedStartDate = moment(startDate).startOf("day"); // Start of the start date
+  const normalizedEndDate = moment(endDate).startOf("day"); // Start of the end date
 
-  if (new Date(startDate) < currentDate) {
+  if (normalizedStartDate.isBefore(currentDate)) {
     return res
       .status(400)
       .json({ message: "Start date cannot be in the past." });
   }
 
-  if (new Date(endDate) < currentDate) {
+  if (normalizedEndDate.isBefore(currentDate)) {
     return res.status(400).json({ message: "End date cannot be in the past." });
   }
 
@@ -247,15 +250,13 @@ const addWorkoutToWeek = async (req, res) => {
       return res.status(400).json({ error: "Duration is required" });
     }
 
-    // Checking if workout date is in the past
-    const currentDate = new Date();
-    const workoutDate = new Date(workout.date);
+    // Convert dates using moment
+    const workoutDate = moment(workout.date).startOf("day"); // Set time to the start of the day
+    const programStartDate = moment(program.startDate).startOf("day");
+    const programEndDate = moment(program.endDate).startOf("day");
 
-    // Check if workout date is within program start and end dates
-    const programStartDate = new Date(program.startDate);
-    const programEndDate = new Date(program.endDate);
-
-    if (workoutDate < programStartDate || workoutDate > programEndDate) {
+    // Check if the workout date is within the program's start and end dates
+    if (!workoutDate.isBetween(programStartDate, programEndDate, null, "[]")) {
       return res.status(400).json({
         message: `Workout date must be between program start date (${program.startDate}) and end date (${program.endDate}).`,
       });
@@ -337,7 +338,7 @@ const addWorkoutToWeek = async (req, res) => {
       });
 
       if (!existingExercise) {
-        // If the exercise does not exist, insert the new one with its sets
+        // If the  exercise does not exist, insert the new one with its sets
         const newExercise = new ExercisesNames({
           exerciseName,
           sets: sets, // Add the sets related to the exercise
