@@ -273,6 +273,15 @@ const userCompletedWorkOuts = async (req, res) => {
 
     // Fetch the program to get start and end dates
     const program = await Program.findOne({ _id: programId });
+    if (!program) {
+      return res.status(200).json({
+        completionDates: [],
+        programDates: {
+          startDate: "",
+          endDate: "",
+        },
+      });
+    }
 
     // Format startDate and endDate to display like 'Sep 19' without the year
     const formattedStartDate = moment(program.startDate).format("MMM D");
@@ -474,6 +483,7 @@ const editCompletedWorkout = async (req, res) => {
         error: `Stations ${stations.length} is not the same as numberOfStations ${numberOfStations}`,
       });
     }
+    const firstMeasurementType = workout.stations[0].sets[0].measurementType;
     //applying validation
     for (const station of stations) {
       if (!station.exerciseName) {
@@ -486,6 +496,15 @@ const editCompletedWorkout = async (req, res) => {
           .status(400)
           .json({ message: "Each station must have at least one set." });
       }
+      const isValid = station.sets.every(
+        (set) => set.measurementType === firstMeasurementType
+      );
+      if (!isValid) {
+        return res.status(400).json({
+          error: `All sets in station ${station.stationNumber} must have the same measurement type.`,
+        });
+      }
+      station.completed = true;
     }
 
     workout.numberOfStations = numberOfStations;
@@ -495,6 +514,8 @@ const editCompletedWorkout = async (req, res) => {
       .status(200)
       .json({ msg: "workout updated successfully", workout });
   } catch (error) {
+    console.log(error);
+
     return res.status(500).json({ msg: "unable to update workout" });
   }
 };
