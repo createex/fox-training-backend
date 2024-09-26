@@ -4,11 +4,17 @@ const mongoose = require("mongoose");
 function arrayLimit(val) {
   return val.length > 0; // Ensure at least one set
 }
+
 // Schema for individual sets
 const setSchema = new mongoose.Schema({
+  level: {
+    type: String,
+    enum: ["Beginner", "Intermediate", "Advanced"],
+    required: true,
+  },
   measurementType: {
     type: String,
-    enum: ["Reps", "Time", "Disstance"], // Define valid measurement types
+    enum: ["Reps", "Time", "Distance"],
     required: true,
   },
   previous: {
@@ -33,82 +39,94 @@ const setSchema = new mongoose.Schema({
       );
     },
   },
-  reps: {
-    type: Number,
-    min: [1, "Reps must be at least 1"], // Ensure positive number
-    required: function () {
-      return this.measurementType === "Reps";
+});
+
+// Schema for each exercise within a station
+const exerciseSchema = new mongoose.Schema({
+  exerciseName: {
+    type: String,
+    required: true,
+  },
+  sets: {
+    type: [setSchema], // Multiple sets for different levels
+    required: true,
+    validate: {
+      validator: function (v) {
+        return v.length > 0; // Ensure at least one set per exercise
+      },
+      message: "Each exercise must have at least one set.",
     },
-  },
-  time: {
-    type: Number,
-    required: function () {
-      return this.measurementType === "Time";
-    }, // Only required for time-based exercises
-    min: [1, "Time must be at least 1 second"],
-  },
-  distance: {
-    type: Number,
-    required: function () {
-      return this.measurementType === "Distance";
-    }, // Only required for distance-based exercises
-    min: [1, "Distance must be at least 1 meter"],
   },
 });
 
 // Schema for each station
 const stationSchema = new mongoose.Schema({
-  exerciseName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  sets: {
-    type: [setSchema],
-    required: true,
-    validate: [arrayLimit, "{PATH} must have at least one set"],
-  },
   stationNumber: {
     type: Number,
+    required: true, // Unique number for each station
+  },
+  exercises: {
+    type: [exerciseSchema], // Each station can have multiple exercises
     required: true,
+    validate: {
+      validator: function (v) {
+        return v.length > 0; // Ensure at least one exercise per station
+      },
+      message: "Each station must have at least one exercise.",
+    },
   },
   completed: {
     type: Boolean,
-    default: false, // Field to track station completion
+    default: false, // Track station completion
   },
 });
 
 // Main schema for user workout logs
 const workoutLogSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
   programId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Program",
+    required: true,
+  },
+  workOutId: {
+    type: mongoose.Schema.Types.ObjectId,
+
     required: true,
   },
   weekNumber: {
     type: Number,
     required: true,
     min: [1, "Week number cannot be less than 1"],
-    max: [4, "Week number cannot be greater than 4"], // Validation for week number
+    max: [4, "Week number cannot be greater than 4."], // Ensure valid week number
   },
-  workOutId: { type: mongoose.Schema.Types.ObjectId, required: true },
   stations: {
-    type: [stationSchema],
+    type: [stationSchema], // Each workout log contains multiple stations
     required: true,
+    validate: {
+      validator: function (v) {
+        return v.length > 0; // Ensure at least one station
+      },
+      message: "Workout log must contain at least one station.",
+    },
   },
   numberOfStations: {
     type: Number,
     required: true,
     min: [1, "There must be at least one station"],
   },
-  level: {
-    type: String,
-    enum: ["Beginner", "Intermediate", "Advanced"], // Track the workout difficulty level
-    required: true,
-  },
-  completed: { type: Boolean, default: false }, // Track workout completion
-  completedAt: { type: Date }, // Timestamp for when the workout was completed
+  completed: {
+    type: Boolean,
+    default: false,
+  }, // Track workout completion
+  completedAt: {
+    type: Date,
+  }, // Timestamp for when the workout was completed
 });
 
+// Exporting the model
 module.exports = mongoose.model("WorkoutLog", workoutLogSchema);

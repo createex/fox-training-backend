@@ -113,15 +113,17 @@ const updateProgram = async (req, res) => {
 
   try {
     // Check if startDate and endDate are valid and not in the past
-    const currentDate = new Date();
+    const currentDate = moment().startOf("day"); // Get the start of the current day (midnight)
+    const normalizedStartDate = moment(startDate).startOf("day"); // Start of the start date
+    const normalizedEndDate = moment(endDate).startOf("day"); // Start of the end date
 
-    if (new Date(startDate) < currentDate) {
+    if (normalizedStartDate.isBefore(currentDate)) {
       return res
         .status(400)
         .json({ message: "Start date cannot be in the past." });
     }
 
-    if (new Date(endDate) < currentDate) {
+    if (normalizedEndDate.isBefore(currentDate)) {
       return res
         .status(400)
         .json({ message: "End date cannot be in the past." });
@@ -166,7 +168,6 @@ const deleteProgram = async (req, res) => {
   }
 };
 
-// Add a workout to a specific week in a program
 // const addWorkoutToWeek = async (req, res) => {
 //   const { programId, weekNumber, workout } = req.body;
 
@@ -175,19 +176,51 @@ const deleteProgram = async (req, res) => {
 //     if (!program) {
 //       return res.status(404).json({ message: "Program not found" });
 //     }
+
+//     // Validate workout duration
 //     if (!workout.duration) {
 //       return res.status(400).json({ error: "Duration is required" });
 //     }
+
+//     // Convert dates using moment
+//     const workoutDate = moment(workout.date).startOf("day"); // Set time to the start of the day
+//     const programStartDate = moment(program.startDate).startOf("day");
+//     const programEndDate = moment(program.endDate).startOf("day");
+
+//     // Check if the workout date is within the program's start and end dates
+//     if (!workoutDate.isBetween(programStartDate, programEndDate, null, "[]")) {
+//       return res.status(400).json({
+//         message: `Workout date must be between program start date (${program.startDate}) and end date (${program.endDate}).`,
+//       });
+//     }
+
 //     const week = program.weeks.find((w) => w.weekNumber === weekNumber);
 //     if (!week) {
 //       return res.status(404).json({ message: "Week not found" });
 //     }
 
-//     // Custom validation for workout
+//     // Check for existing workouts on the same date
+//     const existingWorkout = week.workouts.find((w) =>
+//       moment(w.date).startOf("day").isSame(workoutDate)
+//     );
+//     if (existingWorkout) {
+//       return res.status(400).json({
+//         message: `A workout for this date (${workoutDate.format(
+//           "YYYY-MM-DD"
+//         )}) has already been added.`,
+//       });
+//     }
+
+//     // Custom validation for workout name and image
 //     if (!workout.name || !workout.image) {
 //       return res
 //         .status(400)
 //         .json({ message: "Workout name and image are required." });
+//     }
+
+//     // Validate stations and their counts
+//     if (!workout.stations || workout.stations.length === 0) {
+//       return res.status(400).json({ error: "Workout must include stations." });
 //     }
 
 //     if (workout.stations.length !== workout.numberOfStations) {
@@ -196,17 +229,32 @@ const deleteProgram = async (req, res) => {
 //       });
 //     }
 
-//     // Validate each station for the required fields
+//     // Measurement type should be the same
+//     const firstMeasurementType = workout.stations[0].sets[0].measurementType;
+
+//     // Validate each station for required fields and sets
 //     for (const station of workout.stations) {
 //       if (!station.exerciseName) {
 //         return res
 //           .status(400)
 //           .json({ message: "Exercise name is required for each station." });
 //       }
+
+//       // Validate if sets exist
 //       if (!station.sets || station.sets.length === 0) {
-//         return res
-//           .status(400)
-//           .json({ message: "Each station must have at least one set." });
+//         return res.status(400).json({
+//           message: `Station ${station.stationNumber} must include at least one set.`,
+//         });
+//       }
+
+//       // Check if all sets in the current station have the same measurementType
+//       const isValid = station.sets.every(
+//         (set) => set.measurementType === firstMeasurementType
+//       );
+//       if (!isValid) {
+//         return res.status(400).json({
+//           error: `All sets in station ${station.stationNumber} must have the same measurement type.`,
+//         });
 //       }
 //     }
 
@@ -214,24 +262,35 @@ const deleteProgram = async (req, res) => {
 //     week.workouts.push(workout);
 //     await program.save();
 
-//     //--------------------------  EXTRACTING EXERCIES NAMES FOR SEARCH OPERATION AT FRONTEND   --------------------
-//     //add exercise name to schema
-//     const exerciseNames = workout.stations.map(
-//       (station) => station.exerciseName
-//     );
-//     // Use a loop to insert each exercise name if it doesn't exist
-//     for (const name of exerciseNames) {
-//       await ExercisesNames.updateOne(
-//         { name }, // Check if the name already exists
-//         { name }, // If not, insert it
-//         { upsert: true } // Create if not found
-//       );
-//     }
-//     console.log("Exercise names stored successfully.");
+//     //--------------------------  EXTRACTING EXERCISE NAMES FOR SEARCH OPERATION AT FRONTEND   --------------------
+//     for (const station of workout.stations) {
+//       const { exerciseName, sets } = station;
 
+//       // Check if the exercise already exists in the Exercises collection
+//       const existingExercise = await ExercisesNames.findOne({
+//         exerciseName,
+//       });
+
+//       if (!existingExercise) {
+//         // If the  exercise does not exist, insert the new one with its sets
+//         const newExercise = new ExercisesNames({
+//           exerciseName,
+//           sets: sets, // Add the sets related to the exercise
+//         });
+
+//         await newExercise.save();
+//         console.log(`Exercise '${exerciseName}' added successfully.`);
+//       } else {
+//         console.log(
+//           `Exercise '${exerciseName}' already exists. Skipping insertion.`
+//         );
+//       }
+//     }
 //     //================================================================================================================
+
 //     res.status(201).json({ message: "Workout added successfully", program });
 //   } catch (error) {
+//     console.log(error);
 //     res.status(500).json({ message: "Error adding workout", error });
 //   }
 // };
@@ -298,31 +357,47 @@ const addWorkoutToWeek = async (req, res) => {
     }
 
     // Measurement type should be the same
-    const firstMeasurementType = workout.stations[0].sets[0].measurementType;
+    const firstMeasurementType =
+      workout.stations[0].exercises[0].sets[0].measurementType; // Using optional chaining
 
     // Validate each station for required fields and sets
     for (const station of workout.stations) {
-      if (!station.exerciseName) {
+      if (!station.stationNumber) {
         return res
           .status(400)
-          .json({ message: "Exercise name is required for each station." });
+          .json({ message: "Station number is required for each station." });
       }
 
-      // Validate if sets exist
-      if (!station.sets || station.sets.length === 0) {
+      if (!station.exercises || station.exercises.length === 0) {
         return res.status(400).json({
-          message: `Station ${station.stationNumber} must include at least one set.`,
+          message: `Station ${station.stationNumber} must include at least one exercise.`,
         });
       }
 
-      // Check if all sets in the current station have the same measurementType
-      const isValid = station.sets.every(
-        (set) => set.measurementType === firstMeasurementType
-      );
-      if (!isValid) {
-        return res.status(400).json({
-          error: `All sets in station ${station.stationNumber} must have the same measurement type.`,
-        });
+      // Validate each exercise in the station
+      for (const exercise of station.exercises) {
+        if (!exercise.exerciseName) {
+          return res
+            .status(400)
+            .json({ message: "Exercise name is required for each exercise." });
+        }
+
+        // Validate if sets exist for each exercise
+        if (!exercise.sets || exercise.sets.length === 0) {
+          return res.status(400).json({
+            message: `Exercise '${exercise.exerciseName}' in station ${station.stationNumber} must include at least one set.`,
+          });
+        }
+
+        // Check if all sets in the current exercise have the same measurementType
+        const isValid = exercise.sets.every(
+          (set) => set.measurementType === firstMeasurementType
+        );
+        if (!isValid) {
+          return res.status(400).json({
+            error: `All sets in exercise '${exercise.exerciseName}' must have the same measurement type.`,
+          });
+        }
       }
     }
 
@@ -332,26 +407,26 @@ const addWorkoutToWeek = async (req, res) => {
 
     //--------------------------  EXTRACTING EXERCISE NAMES FOR SEARCH OPERATION AT FRONTEND   --------------------
     for (const station of workout.stations) {
-      const { exerciseName, sets } = station;
+      for (const exercise of station.exercises) {
+        const { exerciseName, sets } = exercise;
 
-      // Check if the exercise already exists in the Exercises collection
-      const existingExercise = await ExercisesNames.findOne({
-        exerciseName,
-      });
+        // Check if the exercise already exists in the Exercises collection
+        const existingExercise = await ExercisesNames.findOne({ exerciseName });
 
-      if (!existingExercise) {
-        // If the  exercise does not exist, insert the new one with its sets
-        const newExercise = new ExercisesNames({
-          exerciseName,
-          sets: sets, // Add the sets related to the exercise
-        });
+        if (!existingExercise) {
+          // If the exercise does not exist, insert the new one with its sets
+          const newExercise = new ExercisesNames({
+            exerciseName,
+            sets: sets, // Add the sets related to the exercise
+          });
 
-        await newExercise.save();
-        console.log(`Exercise '${exerciseName}' added successfully.`);
-      } else {
-        console.log(
-          `Exercise '${exerciseName}' already exists. Skipping insertion.`
-        );
+          await newExercise.save();
+          console.log(`Exercise '${exerciseName}' added successfully.`);
+        } else {
+          console.log(
+            `Exercise '${exerciseName}' already exists. Skipping insertion.`
+          );
+        }
       }
     }
     //================================================================================================================
@@ -362,7 +437,6 @@ const addWorkoutToWeek = async (req, res) => {
     res.status(500).json({ message: "Error adding workout", error });
   }
 };
-
 /*=============================================
 =                   Update Workout In a Program                   =
 =============================================*/
@@ -376,17 +450,15 @@ const updateWorkoutInWeek = async (req, res) => {
     const program = await Program.findById(programId);
 
     if (!program) {
-      throw new Error("Program not found");
+      return res.status(404).json({ message: "Program not found" });
     }
 
-    const currentDate = new Date();
-    const workoutDate = new Date(date);
+    const workoutDate = moment(date).startOf("day");
+    const programStartDate = moment(program.startDate).startOf("day");
+    const programEndDate = moment(program.endDate).startOf("day");
 
     // Check if workout date is within program start and end dates
-    const programStartDate = new Date(program.startDate);
-    const programEndDate = new Date(program.endDate);
-
-    if (workoutDate < programStartDate || workoutDate > programEndDate) {
+    if (!workoutDate.isBetween(programStartDate, programEndDate, null, "[]")) {
       return res.status(400).json({
         message: `Workout date must be between program start date (${program.startDate}) and end date (${program.endDate}).`,
       });
@@ -394,15 +466,17 @@ const updateWorkoutInWeek = async (req, res) => {
 
     let weekFound = false;
     // Check if all sets in the current station have the same measurementType
-    const firstMeasurementType = stations[0].sets[0].measurementType;
+    const firstMeasurementType =
+      stations[0].exercises[0].sets[0].measurementType;
+
     for (const week of program.weeks) {
       const workoutIndex = week.workouts.findIndex(
         (w) => w._id.toString() === workoutId
       );
+
       if (workoutIndex !== -1) {
         // Check if the number of stations matches
         if (stations.length !== numberOfStations) {
-          console.log(stations.length, numberOfStations);
           return res
             .status(400)
             .json({ message: "Number of stations does not match." });
@@ -410,27 +484,40 @@ const updateWorkoutInWeek = async (req, res) => {
 
         // Validate each station for required fields and measurement type
         for (const station of stations) {
-          if (!station.exerciseName) {
+          if (!station.stationNumber) {
             return res
               .status(400)
-              .json({ message: "Exercise name is required for each station." });
+              .json({ message: "Station number is required." });
           }
 
-          // Validate if sets exist
-          if (!station.sets || station.sets.length === 0) {
+          if (!station.exercises || station.exercises.length === 0) {
             return res.status(400).json({
-              message: `Station ${station.stationNumber} must include at least one set.`,
+              message: `Station ${station.stationNumber} must include at least one exercise.`,
             });
           }
 
-          const isValid = station.sets.every(
-            (set) => set.measurementType === firstMeasurementType
-          );
+          for (const exercise of station.exercises) {
+            if (!exercise.exerciseName) {
+              return res.status(400).json({
+                message: "Exercise name is required for each exercise.",
+              });
+            }
 
-          if (!isValid) {
-            return res.status(400).json({
-              error: `All sets in station ${station.stationNumber} must have the same measurement type.`,
-            });
+            if (!exercise.sets || exercise.sets.length === 0) {
+              return res.status(400).json({
+                message: `Exercise ${exercise.exerciseName} in station ${station.stationNumber} must include at least one set.`,
+              });
+            }
+
+            const isValid = exercise.sets.every(
+              (set) => set.measurementType === firstMeasurementType
+            );
+
+            if (!isValid) {
+              return res.status(400).json({
+                error: `All sets in exercise ${exercise.exerciseName} of station ${station.stationNumber} must have the same measurement type.`,
+              });
+            }
           }
         }
 
@@ -440,19 +527,22 @@ const updateWorkoutInWeek = async (req, res) => {
         week.workouts[workoutIndex].numberOfStations = numberOfStations;
         week.workouts[workoutIndex].stations = stations;
         week.workouts[workoutIndex].date = date;
+
         weekFound = true;
         break;
       }
     }
 
     if (!weekFound) {
-      throw new Error("Workout not found");
+      return res
+        .status(404)
+        .json({ message: "Workout not found in any week." });
     }
 
     await program.save();
     return res.status(200).json({ message: "Workout updated successfully" });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(500).json({ message: "Error updating workout", error });
   }
 };
