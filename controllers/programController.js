@@ -268,12 +268,14 @@ const addWorkoutToWeek = async (req, res) => {
     }
 
     // Check for existing workouts on the same date
-    const existingWorkout = week.workouts.find(
-      (w) => new Date(w.date).toDateString() === workoutDate.toDateString()
+    const existingWorkout = week.workouts.find((w) =>
+      moment(w.date).startOf("day").isSame(workoutDate)
     );
     if (existingWorkout) {
       return res.status(400).json({
-        message: `A workout for this date (${workoutDate.toDateString()}) has already been added.`,
+        message: `A workout for this date (${workoutDate.format(
+          "YYYY-MM-DD"
+        )}) has already been added.`,
       });
     }
 

@@ -160,12 +160,22 @@ const startWorkOut = async (req, res) => {
 const finishWorkOut = async (req, res) => {
   const { workOutId, stations, level } = req.body;
   const userId = req.user._id;
+
   try {
     const previousWorkouts = await WorkOutLog.find({ userId, completed: true });
+    const alreadyFinished = await WorkOutLog.findOne({
+      userId,
+      completed: true,
+      level,
+      workOutId,
+    });
+    if (alreadyFinished) {
+      return res.status(500).json({ msg: "Workout Already Finished" });
+    }
     // fetch workout by id
     const fetchedWorkOut = await findWorkOutById(workOutId, res);
     if (!fetchedWorkOut) {
-      return res.status(500).json({ msg: "Workout not found" });
+      return res.status(404).json({ msg: "Workout not found" });
     }
     console.log(fetchedWorkOut);
 
@@ -218,10 +228,12 @@ const finishWorkOut = async (req, res) => {
     });
 
     //after completing workout incrementing totalWorkout count for the user
-    const user = await User.findOne(userId);
+    const user = await User.findOne({ _id: userId });
 
     // Incrementing total workouts
     user.totalWorkouts += 1;
+    console.log(user);
+    console.log(isNewWeek(user.lastWorkoutDate));
 
     // Checking if the workout is in a new week
     if (isNewWeek(user.lastWorkoutDate)) {
@@ -233,7 +245,7 @@ const finishWorkOut = async (req, res) => {
     await updateUserStreak(user._id);
     user.lastWorkoutDate = new Date();
 
-    // await user.save();
+    await user.save();
     await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
     await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
     await checkAndAddStreakAchievements(user._id, user.streaks);
