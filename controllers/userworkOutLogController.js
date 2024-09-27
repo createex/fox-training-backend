@@ -702,13 +702,14 @@ const searchExercise = async (req, res) => {
 const getDataForSpecificLevel = async (req, res) => {
   try {
     const { workoutId } = req.params; // Get workoutId from params
-    const { level, stationNumber } = req.query; // Get level and stationNumber from query
+    const { level, stationNumber, exerciseName } = req.query; // Get level, stationNumber, and exerciseName from query
 
     // Validate query parameters
-    if (!level || !stationNumber || !workoutId) {
-      return res
-        .status(400)
-        .json({ error: "Workout ID, level, and station number are required." });
+    if (!level || !stationNumber || !workoutId || !exerciseName) {
+      return res.status(400).json({
+        error:
+          "Workout ID, level, station number, and exercise name are required.",
+      });
     }
 
     // Fetch the specific program that contains the workouts
@@ -746,54 +747,57 @@ const getDataForSpecificLevel = async (req, res) => {
         .json({ error: `No station found with number ${stationNumber}.` });
     }
 
-    // Filter exercises and their sets based on the selected level
-    const exercises = station.exercises
-      .map((exercise) => {
-        // Filter sets for the specific level
-        const filteredSets = exercise.sets
-          .filter((set) => set.level === level)
-          .map((set) => {
-            // Add common fields
-            const setData = {
-              level: set.level,
-              measurementType: set.measurementType,
-              previous: set.previous || 0, // Add previous field with default value 0
-              lbs: set.lbs || 0, // Add lbs field with default value 0
-              _id: set._id,
-            };
+    // Find the specific exercise by exerciseName
+    const exercise = station.exercises.find(
+      (exercise) => exercise.exerciseName === exerciseName
+    );
 
-            // Add specific fields based on measurementType
-            if (set.measurementType === "Reps") {
-              setData.reps = set.value || 0; // Add reps if measurementType is Reps
-            } else if (set.measurementType === "Time") {
-              setData.time = set.value || 0; // Add time if measurementType is Time
-            } else if (set.measurementType === "Distance") {
-              setData.distance = set.value || 0; // Add distance if measurementType is Distance
-            }
-
-            return setData;
-          });
-
-        // Return exercise only if it has sets for the specific level
-        if (filteredSets.length > 0) {
-          return {
-            exerciseName: exercise.exerciseName,
-            sets: filteredSets,
-            _id: exercise._id,
-          };
-        }
-      })
-      .filter(Boolean); // Remove undefined exercises (those without matching sets)
-
-    // Check if there are any exercises with matching sets
-    if (exercises.length === 0) {
+    if (!exercise) {
       return res
         .status(404)
-        .json({ error: `No exercises found for level: ${level}.` });
+        .json({ error: `No exercise found with name: ${exerciseName}.` });
     }
 
-    // Return filtered exercises
-    return res.status(200).json({ exercises });
+    // Filter sets for the specific level
+    const filteredSets = exercise.sets
+      .filter((set) => set.level === level)
+      .map((set) => {
+        // Add common fields
+        const setData = {
+          level: set.level,
+          measurementType: set.measurementType,
+          previous: set.previous || 0, // Add previous field with default value 0
+          lbs: set.lbs || 0, // Add lbs field with default value 0
+          _id: set._id,
+        };
+
+        // Add specific fields based on measurementType
+        if (set.measurementType === "Reps") {
+          setData.reps = set.value || 0; // Add reps if measurementType is Reps
+        } else if (set.measurementType === "Time") {
+          setData.time = set.value || 0; // Add time if measurementType is Time
+        } else if (set.measurementType === "Distance") {
+          setData.distance = set.value || 0; // Add distance if measurementType is Distance
+        }
+
+        return setData;
+      });
+
+    // Check if there are any sets for the specific level
+    if (filteredSets.length === 0) {
+      return res.status(404).json({
+        error: `No sets found for exercise ${exerciseName} at level: ${level}.`,
+      });
+    }
+
+    // Return filtered exercise data
+    return res.status(200).json({
+      exercise: {
+        exerciseName: exercise.exerciseName,
+        sets: filteredSets,
+        _id: exercise._id,
+      },
+    });
   } catch (error) {
     console.error("Error retrieving data for specific level:", error);
     res.status(500).json({ msg: "Cannot return data for level" });
