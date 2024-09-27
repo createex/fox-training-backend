@@ -268,6 +268,75 @@ const getAllExercise = async (req, res) => {
       .json({ error: "Error fetching exercises", details: error.message });
   }
 };
+
+//update exercise
+const updateExercise = async (req, res) => {
+  const { exerciseId } = req.params; // The ID of the exercise to update
+  const { exerciseName, sets } = req.body; // The new data for the exercise
+
+  try {
+    // Validate that exercise name and sets are provided
+    if (!exerciseName || !sets || sets.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Exercise name and sets are required" });
+    }
+
+    // Validate that all sets have the same measurementType
+    const firstMeasurementType = sets[0].measurementType;
+    const allSameMeasurementType = sets.every(
+      (set) => set.measurementType === firstMeasurementType
+    );
+
+    if (!allSameMeasurementType) {
+      return res.status(400).json({
+        error:
+          "All sets must have the same measurement type (e.g., all 'Reps', 'Time', or 'Distance').",
+      });
+    }
+
+    // Find and update the exercise by ID
+    const updatedExercise = await ExerciseName.findByIdAndUpdate(
+      exerciseId,
+      { exerciseName, sets }, // Fields to update
+      { new: true, runValidators: true } // Return the updated document
+    );
+
+    if (!updatedExercise) {
+      return res.status(404).json({ error: "Exercise not found" });
+    }
+
+    res.status(200).json({
+      message: "Exercise updated successfully",
+      exercise: updatedExercise,
+    });
+  } catch (error) {
+    console.error("Error updating exercise:", error);
+    res.status(500).json({ error: "Error updating exercise", details: error });
+  }
+};
+
+//delete exercise
+const deleteExercise = async (req, res) => {
+  const { exerciseId } = req.params; // The ID of the exercise to delete
+
+  try {
+    // Find and delete the exercise by ID
+    const deletedExercise = await ExerciseName.findByIdAndDelete(exerciseId);
+
+    if (!deletedExercise) {
+      return res.status(404).json({ error: "Exercise not found" });
+    }
+
+    res.status(200).json({
+      message: "Exercise deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting exercise:", error);
+    res.status(500).json({ error: "Error deleting exercise", details: error });
+  }
+};
+
 module.exports = {
   topWinUsers,
   userWeeklyWorkoutGoal,
@@ -275,4 +344,6 @@ module.exports = {
   userRecentAcheivement,
   addExercise,
   getAllExercise,
+  updateExercise,
+  deleteExercise,
 };
