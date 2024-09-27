@@ -4,31 +4,31 @@ const WorkoutLog = require("../models/userWorkOutLog");
 const moment = require("moment");
 const ExerciseName = require("../models/exerciesNames");
 
-// const topWinUsers = async (req, res) => {
-//   try {
-//     const limit = parseInt(req.query.limit) || 10;
-
-//     // Aggregation pipeline to find top users by totalWorkouts
-//     const topUsers = await User.aggregate([
-//       {
-//         $sort: { totalWorkouts: -1 },
-//       },
-//       {
-//         $limit: limit,
-//       },
-//       {
-//         $project: {
-//           email: 1,
-//           totalWorkouts: 1,
-//           username: 1,
-//         },
-//       },
-//     ]);
-//     return res.status(200).json(topUsers);
-//   } catch (error) {
-//     return res.status(500).json({ msg: "Error Finding Top Winners", error });
-//   }
-// };
+/**
+ * @route   GET /dashboard/top-win-users
+ * @desc    Retrieves the top users with the highest number of completed workouts
+ *          within a specified time period (default is 1 week). The result is
+ *          sorted by the total number of completed workouts, in descending order.
+ *
+ * @queryParam {number} [limit=5] - The maximum number of top users to return (optional, default: 5).
+ * @queryParam {string} [timePeriod=1_week] - The time period to filter results by:
+ *           - "1_week" (default): Returns users who completed the most workouts in the last week.
+ *           - "1_month": Returns users who completed the most workouts in the last month.
+ *           - "all_time": Returns users with the most workouts completed of all time.
+ *
+ * @returns {Object[]} - Returns an array of top users with their usernames, emails, and total completed workouts.
+ *
+ * @example
+ *  Example GET request:
+ * /dashboard/top-win-users?limit=3&timePeriod=1_month
+ *
+ * @response {Object[]} topUsers - Array of top users with their details:
+ *    - username: User's username.
+ *    - email: User's email.
+ *    - totalWorkouts: Total number of completed workouts within the specified time period.
+ *
+ * @throws {500} - Returns an error message if there's an issue fetching top users.
+ */
 
 const topWinUsers = async (req, res) => {
   try {
@@ -98,6 +98,31 @@ const topWinUsers = async (req, res) => {
   }
 };
 
+/**
+ * @route   GET /dashboard/user-workout-goal
+ * @desc    Retrieves a paginated list of users with their workout-related information,
+ *          including their username, email, weekly workout goals, total workouts completed,
+ *          and workout streaks.
+ *
+ * @queryParam {number} [page=1] - The page number for pagination (optional, default: 1).
+ * @queryParam {number} [limit=10] - The number of users to return per page (optional, default: 10).
+ *
+ * @returns {Object[]} - Returns an array of users with their workout goal data.
+ *
+ * @example
+ *  Example GET request:
+ *  /dashboard/user-workout-goal?page=2&limit=5
+ *
+ * @response {Object[]} users - Array of users with their workout goal details:
+ *    - username: User's username.
+ *    - email: User's email.
+ *    - weeklyWorkOutGoal: User's weekly workout goal.
+ *    - totalWorkouts: Total number of workouts completed by the user.
+ *    - streaks.
+ *
+ * @throws {500} - Returns an error message if there's an issue fetching users' data.
+ */
+
 const userWeeklyWorkoutGoal = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -120,6 +145,33 @@ const userWeeklyWorkoutGoal = async (req, res) => {
     res.status(500).json({ msg: "Error Fetching Users", error });
   }
 };
+
+/**
+ * @route   GET /dashboard/all-users
+ * @desc    Retrieves a paginated list of all users with key workout and activity information,
+ *          including username, email, last activity date, total workouts, weekly workouts,
+ *          workout streaks, and personal best count.
+ *
+ * @queryParam {number} [page=1] - The page number for pagination (optional, default: 1).
+ * @queryParam {number} [limit=10] - The number of users to return per page (optional, default: 10).
+ *
+ * @returns {Object[]} - Returns an array of users with their workout-related details.
+ *
+ * @example
+ *  Example GET request:
+ *  /dashboard/all-users?page=3&limit=5
+ *
+ * @response {Object[]} users - Array of users with their workout and activity data:
+ *    - username: User's username.
+ *    - email: User's email address.
+ *    - lastActiveAt: The last date the user was active.
+ *    - totalWorkouts: The total number of workouts completed by the user.
+ *    - workoutsInWeek: The number of workouts completed in the current week.
+ *    - streaks: The number of consecutive workout weeks.
+ *    - personalBestCounter: The total number of personal bests achieved by the user.
+ *
+ * @throws {500} - Returns an error message if there's an issue fetching the users' data.
+ */
 
 const getAllUsers = async (req, res) => {
   try {
@@ -148,6 +200,31 @@ const getAllUsers = async (req, res) => {
     res.status(500).json({ msg: "Error Fetching Users", error });
   }
 };
+
+/**
+ * @route   GET /dashboard/recent-acheivements
+ * @desc    Retrieves the most recent achievements of users within the current month.
+ *          Achievements are sorted by the most recent date, and the result includes user details.
+ *
+ * @queryParam {number} [limit] - The number of recent achievements to retrieve (optional, default: unlimited).
+ *
+ * @returns {Object[]} - Returns an array of users with their most recent achievements.
+ *
+ * @example
+ *  Example GET request:
+ *  /dashboard/recent-acheivements?limit=10
+ *
+ * @response {Object[]} - An array of objects representing users' recent achievements:
+ *    - userId: The unique identifier of the user.
+ *    - username: The user's username.
+ *    - email: The user's email.
+ *    - mostRecentAchievement: The user's most recent achievement details, including:
+ *      - achievementType: The type of achievement (e.g., streak, personal best).
+ *      - date: The date of the achievement.
+ *      - category: The category of the achievement.
+ *
+ * @throws {500} - Returns an error message if there's an issue fetching recent achievements.
+ */
 
 const userRecentAcheivement = async (req, res) => {
   try {
@@ -216,6 +293,30 @@ const userRecentAcheivement = async (req, res) => {
   }
 };
 
+/**
+ * @route   POST /dashboard/add-exercise
+ * @desc    Adds a new exercise with its corresponding sets. Validates that all sets have the same measurement type (e.g., 'Reps', 'Time', or 'Distance').
+ *
+ * @bodyParam {string} exerciseName - The name of the exercise (required).
+ * @bodyParam {Array} sets - An array of sets for the exercise (required). Each set must have the same `measurementType`.
+ *
+ * @returns {Object} - Returns a success message along with the newly added exercise details if valid.
+ *
+ * @example
+ *  Example POST request:
+ *  {
+ *    "exerciseName": "Push Up",
+ *    "sets": [
+ *      { "measurementType": "Reps", "reps": 15 },
+ *      { "measurementType": "Reps", "reps": 12 }
+ *    ]
+ *  }
+ *
+ * @response {201} - Exercise added successfully.
+ * @response {400} - Returns an error if `exerciseName` or `sets` are missing, or if sets have different `measurementType`.
+ * @response {500} - Returns an error message if there's an issue adding the exercise.
+ */
+
 const addExercise = async (req, res) => {
   const { exerciseName, sets } = req.body;
 
@@ -252,6 +353,26 @@ const addExercise = async (req, res) => {
   }
 };
 
+/**
+ * @route   GET /dashboard/all-exercises
+ * @desc    Fetches all exercises stored in the database.
+ *
+ * @returns {Object} - Returns a list of all exercises.
+ *
+ * @response {200} - A list of exercises is successfully retrieved.
+ * @response {404} - No exercises found in the database.
+ * @response {500} - Returns an error message if there's an issue fetching the exercises.
+ *
+ * @example
+ *  Example successful response:
+ *  {
+ *    "exercises": [
+ *      { "exerciseName": "Push Up", "sets": [...] },
+ *      { "exerciseName": "Squat", "sets": [...] }
+ *    ]
+ *  }
+ */
+
 const getAllExercise = async (req, res) => {
   try {
     // Fetch all exercises from the database
@@ -269,7 +390,33 @@ const getAllExercise = async (req, res) => {
   }
 };
 
-//update exercise
+/**
+ * @route   Patch /dashboard/update-exercise/:exerciseId
+ * @desc    Updates an existing exercise with new data.
+ *
+ * @param   {string} exerciseId - The ID of the exercise to be updated.
+ * @body    {string} exerciseName - The new name for the exercise.
+ * @body    {Array} sets - An array of sets associated with the exercise.
+ *
+ * @returns {Object} - Returns the updated exercise data.
+ *
+ * @response {200} - The exercise was successfully updated.
+ * @response {400} - Bad request if the exercise name or sets are not provided or if sets have different measurement types.
+ * @response {404} - Exercise not found in the database.
+ * @response {500} - Returns an error message if there's an issue updating the exercise.
+ *
+ * @example
+ *  Example successful response:
+ *  {
+ *    "message": "Exercise updated successfully",
+ *    "exercise": {
+ *      "_id": "exerciseId",
+ *      "exerciseName": "Updated Exercise Name",
+ *      "sets": [...]
+ *    }
+ *  }
+ */
+
 const updateExercise = async (req, res) => {
   const { exerciseId } = req.params; // The ID of the exercise to update
   const { exerciseName, sets } = req.body; // The new data for the exercise
@@ -316,7 +463,25 @@ const updateExercise = async (req, res) => {
   }
 };
 
-//delete exercise
+/**
+ * @route   DELETE /dashboard/delete-exercise/:exerciseId
+ * @desc    Deletes an existing exercise from the database.
+ *
+ * @param   {string} exerciseId - The ID of the exercise to be deleted.
+ *
+ * @returns {Object} - Returns a success message upon successful deletion.
+ *
+ * @response {200} - The exercise was successfully deleted.
+ * @response {404} - Exercise not found in the database.
+ * @response {500} - Returns an error message if there's an issue deleting the exercise.
+ *
+ * @example
+ *  Example successful response:
+ *  {
+ *    "message": "Exercise deleted successfully"
+ *  }
+ */
+
 const deleteExercise = async (req, res) => {
   const { exerciseId } = req.params; // The ID of the exercise to delete
 
