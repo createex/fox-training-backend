@@ -91,9 +91,9 @@ const userLoginToTab = async (req, res) => {
     // Associate user with tab session
     tab.loggedInUser = user._id;
     await tab.save();
+
     const workoutLog = await WorkoutLog.find({
       userId: user._id,
-      level: "Beginner",
     });
 
     // Fetch today's workout details
@@ -102,29 +102,20 @@ const userLoginToTab = async (req, res) => {
       programId,
       weekNumber,
     } = await fetchUserTodaysWorkout(res);
-    // console.log("todaysss workout ", JSON.stringify(todaysWorkout));
 
-    let existingWeekNumber;
-    let existingProgramId;
-    let existingWorkoutId;
-    let existingLevel;
-    // Check if the station has already been saved
     let existingStation = null;
+
     for (const log of workoutLog) {
-      // Exit the loop if a completed station is found
+      // Check if the log matches the current workout, program, and user
       if (
         log.workOutId.toString() === todaysWorkout._id.toString() &&
         log.programId.toString() === programId.toString() &&
         log.userId.toString() === user._id.toString()
       ) {
-        existingProgramId = log.programId;
-        existingWeekNumber = log.weekNumber;
-        existingWorkoutId = log.workOutId;
-        existingLevel = log.level;
         existingStation = log.stations.find(
           (station) =>
-            station.completed === true &&
-            station.stationNumber === tab.stationNumber
+            station.stationNumber === tab.stationNumber &&
+            station.completed === true
         );
         if (existingStation) break;
       }
@@ -136,60 +127,70 @@ const userLoginToTab = async (req, res) => {
         workout: {
           station: existingStation,
           userId: user._id,
-          weekNumber: existingWeekNumber,
-          programId: existingProgramId,
-          workOutId: existingWorkoutId,
+          weekNumber: existingStation.weekNumber, // Use the existing station's weekNumber
+          programId: existingStation.programId, // Use the existing station's programId
+          workOutId: existingStation.workOutId, // Use the existing station's workOutId
           completed: true,
-          measurementType: existingStation.sets[0].measurementType,
-          level: existingLevel,
+          measurementType: existingStation.exercises[0].sets[0].measurementType,
         },
       });
     }
 
     // Access the stations array
     const stations = todaysWorkout.stations;
-
     const targetStationNumber = tab.stationNumber;
     const stationIndex = stations.findIndex(
       (station) => station.stationNumber === targetStationNumber
     );
 
+    // Ensure we have a valid station index
+    if (stationIndex === -1) {
+      return res
+        .status(404)
+        .json({ message: "Station not found in today's workout" });
+    }
+
+    // Build the workout object including all exercises for the station
     let workout = {
       station: {
-        exerciseName: todaysWorkout.stations[stationIndex].exerciseName,
         stationNumber: todaysWorkout.stations[stationIndex].stationNumber,
-        sets: todaysWorkout.stations[stationIndex].sets
-          .filter((set) => set.level === "Beginner") // Only include Beginner sets
-          .map((set) => {
-            let setData = {
-              measurementType: set.measurementType,
-              previous: 0, // default
-              lbs: 0, // default
-              _id: set._id,
-            };
+        completed: false,
+        exercises: todaysWorkout.stations[stationIndex].exercises.map(
+          (exercise) => ({
+            exerciseName: exercise.exerciseName,
+            sets: exercise.sets
+              .filter((set) => set.level === "Beginner") // Only include Beginner sets
+              .map((set) => {
+                let setData = {
+                  measurementType: set.measurementType,
+                  previous: set.previous || 0, // default
+                  lbs: set.lbs || 0,
+                  level: set.level, // default
+                  _id: set._id,
+                };
 
-            // Add specific fields based on measurement type
-            if (set.measurementType === "Time") {
-              setData.time = set.value;
-            } else if (set.measurementType === "Reps") {
-              setData.reps = set.value;
-            } else if (set.measurementType === "Distance") {
-              setData.distance = set.value;
-            }
+                // Add specific fields based on measurement type
+                if (set.measurementType === "Time") {
+                  setData.time = set.value;
+                } else if (set.measurementType === "Reps") {
+                  setData.reps = set.value;
+                } else if (set.measurementType === "Distance") {
+                  setData.distance = set.value;
+                }
 
-            return setData;
-          }),
-        _id: todaysWorkout.stations[stationIndex]._id,
-        completed: false, // Mark station as completed if applicable
+                return setData;
+              }),
+          })
+        ),
       },
       userId: user._id,
       weekNumber: weekNumber,
       programId: programId,
       workOutId: todaysWorkout._id,
       measurementType:
-        todaysWorkout.stations[stationIndex].sets[0].measurementType,
+        todaysWorkout.stations[stationIndex].exercises[0].sets[0]
+          .measurementType,
       completed: false,
-      level: "Beginner",
     };
 
     res.status(200).json({
@@ -204,19 +205,12 @@ const userLoginToTab = async (req, res) => {
 
 const saveWorkout = async (req, res) => {
   try {
-    const { workOutId, userId, station, weekNumber, programId, level } =
-      req.body;
+    const { workOutId, userId, weekNumber, programId, station } = req.body;
     const tabId = req.tabId;
 
     const tab = await Tab.findOne({ tabId });
     if (!tab) {
       return res.status(500).json({ msg: "Tab not found" });
-    }
-
-    if (tab.stationNumber !== station.stationNumber) {
-      return res.status(500).json({
-        msg: `Station Number: ${station.stationNumber} and tab's station number: ${tab.stationNumber} are not the same`,
-      });
     }
 
     const user = await User.findOne({ _id: userId });
@@ -229,27 +223,41 @@ const saveWorkout = async (req, res) => {
     if (!fetchedWorkOut) {
       return res.status(500).json({ msg: "Workout not found" });
     }
-    const previousWorkouts = await WorkoutLog.find({ userId, completed: true });
 
-    //check for not completed wrokout
-    let unfinishedWorkout = await WorkoutLog.findOne({
-      userId,
-      workOutId,
-      completed: false,
-    });
+    // Check if the station has an exercise and the exercise has sets
+    if (station.exercises.length == 0) {
+      return res.status(400).json({ msg: "Station must have an exercise." });
+    }
 
-    if (unfinishedWorkout) {
-      if (unfinishedWorkout.level !== level) {
-        return res.status(500).json({
-          msg: `Your ${unfinishedWorkout.level} level workout is not finished yet finish it first`,
-        });
+    // Validate station number against tab
+    if (station.stationNumber !== tab.stationNumber) {
+      return res.status(400).json({
+        msg: `Cannot save data for this station ${station.stationNumber} into a different tab ${tab.stationNumber}.`,
+      });
+    }
+
+    // Validate each exercise and its sets
+    for (const exercise of station.exercises) {
+      if (!Array.isArray(exercise.sets) || exercise.sets.length === 0) {
+        return res
+          .status(400)
+          .json({ msg: "Each exercise must have at least one set." });
+      }
+
+      for (const set of exercise.sets) {
+        if (typeof set.reps !== "number" || typeof set.lbs !== "number") {
+          return res
+            .status(400)
+            .json({ msg: "Each set must have valid reps and lbs." });
+        }
       }
     }
+
     // Find or create a workout log for the user
     let workoutLog = await WorkoutLog.findOne({
       userId,
       workOutId,
-      level: level,
+      weekNumber,
     });
 
     if (!workoutLog) {
@@ -262,49 +270,34 @@ const saveWorkout = async (req, res) => {
         stations: [],
         completed: false,
         completedAt: null,
-        level,
       });
     }
 
     // Check if the station has already been saved
     const existingStation = workoutLog.stations.find(
-      (std) =>
-        std.stationNumber === station.stationNumber && std.completed == true
+      (std) => std.stationNumber === station.stationNumber
     );
     if (existingStation) {
       return res.status(200).json({ msg: "Station data already saved" });
     }
 
-    const firstMeasurementType = station.sets[0].measurementType;
-    // Check if all sets in the current station have the same measurementType
-    const isValid = station.sets.every(
-      (set) => set.measurementType === firstMeasurementType
-    );
-    if (!isValid) {
-      return res.status(400).json({
-        error: `All sets in station ${station.stationNumber} must have the same measurement type.`,
-      });
-    }
-
-    if (workoutLog.level !== level) {
-      return res.status(500).json({
-        msg: `Your Level for this workout is ${workoutLog.level} You cannot select another level`,
-      });
-    }
-
-    // Mark the station as complete and add it to the workout log
+    // Mark the station as completed and add it to the workout log
     station.completed = true;
     workoutLog.stations.push(station);
+
+    // Check if all stations have been filled
     if (workoutLog.stations.length === workoutLog.numberOfStations) {
       workoutLog.completed = true;
-      // Incrementing total workouts
+      workoutLog.completedAt = new Date();
+
+      // Increment total workouts
       user.totalWorkouts += 1;
 
       // Checking if the workout is in a new week
       if (isNewWeek(user.lastWorkoutDate)) {
-        user.workoutsInWeek = 1; // Reset to 1 since this is the first workout of the week
+        user.workoutsInWeek = 1; // Reset to 1 for the first workout of the week
       } else {
-        user.workoutsInWeek += 1; // Incrementing the weekly count
+        user.workoutsInWeek += 1; // Increment weekly count
       }
 
       await updateUserStreak(user._id);
@@ -314,23 +307,17 @@ const saveWorkout = async (req, res) => {
       await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
       await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
       await checkAndAddStreakAchievements(user._id, user.streaks);
-      // await checkAndAddPersonalBestAwards({
-      //   userId: user._id,
-      //   newWorkout: workoutLog,
-      //   previousWorkouts,
-      // });
     }
 
     // Save the updated workout log
     await workoutLog.save();
-    await user.save();
 
     return res.status(200).json({ msg: "Station data saved successfully" });
   } catch (error) {
     console.error("Error saving workout:", error);
     res
       .status(500)
-      .json({ message: "Failecd to save station data", error: error.message });
+      .json({ message: "Failed to save station data", error: error.message });
   }
 };
 

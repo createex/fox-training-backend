@@ -8,7 +8,7 @@ const {
   getUserAwAwards,
   getTodaysWorkOut,
   getUserTotalWorkouts,
-  getWeightData,
+
   getCompletedWeeklyGoal,
   editCompletedWorkout,
   getExercisesNames,
