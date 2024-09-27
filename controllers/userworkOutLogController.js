@@ -128,6 +128,7 @@ const startWorkOut = async (req, res) => {
           programTitle: alreadyFinished.programTitle,
           programId: alreadyFinished.programId,
           completed: alreadyFinished.completed,
+          workOutId: alreadyFinished.workOutId,
           measurementType,
         },
       });
@@ -163,7 +164,6 @@ const finishWorkOut = async (req, res) => {
       completed: true,
       workOutId,
     });
-    console.log("alllllllllllllllllllllllllllllllll", alreadyFinished);
 
     if (alreadyFinished) {
       return res.status(400).json({ msg: "Workout Already Finished" });
@@ -269,7 +269,7 @@ const finishWorkOut = async (req, res) => {
     //   previousWorkouts,
     // });
 
-    res.status(201).json({ msg: "Workout completed successfully", newWorkout });
+    res.status(201).json({ msg: "Workout completed successfully" });
   } catch (error) {
     console.log(error);
     res.status(500).json({ msg: "Failed to finish workout", error: error });
@@ -285,6 +285,7 @@ const userCompletedWorkOuts = async (req, res) => {
   try {
     const userId = req.user._id;
     const programId = req.params.programId;
+
     // Fetch completed workouts for the user and program
     const completedWorkOuts = await WorkOutLog.find({
       userId,
@@ -293,8 +294,8 @@ const userCompletedWorkOuts = async (req, res) => {
     }).sort({ completedAt: 1 });
 
     // Map completion dates formatted as 'DD-MM-YYYY'
-    const dates = completedWorkOuts.map((logs) =>
-      moment(logs.completedAt).format("DD-MM-YYYY")
+    const dates = completedWorkOuts.map((log) =>
+      moment(log.completedAt).format("DD-MM-YYYY")
     );
 
     // Fetch the program to get start and end dates
@@ -322,7 +323,7 @@ const userCompletedWorkOuts = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log(error);
+    console.log("Error finding user workouts:", error);
     res.status(500).json({ msg: "Error finding user workouts", error });
   }
 };
@@ -463,24 +464,6 @@ const getCompletedWeeklyGoal = async (req, res) => {
 /*============  End of Weekly completed Goal  =============*/
 
 /*=============================================
-=                   Get Weight Data                   =
-=============================================*/
-
-const getWeightData = async (req, res) => {
-  const userId = req.user._id;
-  const { repRange, timePeriod } = req.query;
-
-  try {
-    const data = await fetchWeightData(repRange, timePeriod, userId);
-    res.json({ data });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/*============  End of Get Weight Data  =============*/
-
-/*=============================================
 =                   Edit Completed Workout                   =
 =============================================*/
 
@@ -595,47 +578,225 @@ const getExercisesNames = async (req, res) => {
   }
 };
 
-const getExerciseByName = async (req, res) => {
+const searchExercise = async (req, res) => {
   try {
-    const { name } = req.query;
+    const { name } = req.query; // Only require name in query
     const userId = req.user._id;
 
     if (!name) {
-      return res.status(400).json({ error: "Please provide  exercise name" });
+      return res.status(400).json({ error: "Please provide an exercise name" });
     }
 
-    // Perform a search in workoutLog based on userId and exerciseName (case-insensitive)
+    // Get the current month
+    const startOfMonth = moment().startOf("month").toDate();
+    const endOfMonth = moment().endOf("month").toDate();
+
+    // Search in workoutLog based on userId, exerciseName, and the current month range
     const workoutLogs = await WorkOutLog.find({
       userId,
+      completedAt: {
+        $gte: startOfMonth,
+        $lte: endOfMonth,
+      },
       stations: {
         $elemMatch: {
-          exerciseName: { $regex: name, $options: "i" }, // Case-insensitive search for exercise name
+          exercises: {
+            $elemMatch: {
+              exerciseName: { $regex: name, $options: "i" }, // Case-insensitive search for exercise name
+            },
+          },
         },
       },
-    }).select("stations.exerciseName completedAt stations.sets -_id"); // Return stations that contain the exercise name
+    }).select("stations.completedAt stations.exercises -_id");
 
-    // Filter out only the stations that match the exercise name
-    const results = workoutLogs.flatMap((log) =>
-      log.stations
-        .filter((station) =>
-          station.exerciseName.toLowerCase().includes(name.toLowerCase())
-        )
-        .map((station) => ({
-          station, // Include all station data
-          completedAt: log.completedAt, // Include completion date from workoutLog
-        }))
-    );
+    // Helper function to get the current week of the month
+    const getWeekOfMonth = (date) => {
+      const currentWeek = Math.ceil(moment(date).date() / 7); // Get the week number (1-4 or 1-5)
+      return `Week ${currentWeek}`;
+    };
 
-    if (results.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No stations found with the given exercise name" });
+    // Organize results into weeks for the current month
+    const groupedByWeeks = workoutLogs.reduce((result, log) => {
+      log.stations.forEach((station) => {
+        station.exercises.forEach((exercise) => {
+          if (
+            exercise.exerciseName.toLowerCase().includes(name.toLowerCase())
+          ) {
+            const week = getWeekOfMonth(log.completedAt);
+
+            // If the week doesn't exist, create it
+            if (!result[week]) {
+              result[week] = [];
+            }
+
+            // Check if the exercise already exists in the current week
+            let existingExercise = result[week].find(
+              (e) => e.exerciseName === exercise.exerciseName
+            );
+
+            if (!existingExercise) {
+              // If the exercise doesn't exist, initialize it with empty arrays
+              existingExercise = {
+                exerciseName: exercise.exerciseName,
+                measurementType: exercise.sets[0]?.measurementType || "",
+                reps: [],
+                lbs: [],
+                // Only initialize the fields relevant to the measurement type
+                ...(exercise.sets[0]?.measurementType === "Reps" && {
+                  time: undefined,
+                  distance: undefined,
+                }),
+                ...(exercise.sets[0]?.measurementType === "Time" && {
+                  reps: undefined,
+                  lbs: undefined,
+                  distance: undefined,
+                }),
+                ...(exercise.sets[0]?.measurementType === "Distance" && {
+                  reps: undefined,
+                  lbs: undefined,
+                  time: undefined,
+                }),
+              };
+              result[week].push(existingExercise);
+            }
+
+            // Populate relevant fields based on the set's measurement type
+            exercise.sets.forEach((set) => {
+              if (set.measurementType === "Reps") {
+                if (set.reps !== undefined) {
+                  existingExercise.reps.push(set.reps);
+                  existingExercise.lbs.push(set.lbs); // lbs is relevant for Reps
+                }
+              } else if (set.measurementType === "Time") {
+                if (set.time !== undefined) {
+                  existingExercise.time.push(set.time);
+                  existingExercise.lbs.push(set.lbs);
+                }
+              } else if (set.measurementType === "Distance") {
+                if (set.distance !== undefined) {
+                  existingExercise.distance.push(set.distance);
+                  existingExercise.lbs.push(set.lbs);
+                }
+              }
+            });
+          }
+        });
+      });
+      return result;
+    }, {});
+
+    if (Object.keys(groupedByWeeks).length === 0) {
+      return res.status(404).json({
+        error: "No exercises found with the given name for the current month",
+      });
     }
 
-    res.status(200).json(results);
+    // Respond with grouped data by week within the current month
+    res.status(200).json({ data: groupedByWeeks });
   } catch (error) {
-    console.error("Error searching stations:", error);
-    res.status(500).json({ error: "Failed to search completed exercises" });
+    console.error("Error searching exercises:", error);
+    res.status(500).json({ error: "Failed to search exercises" });
+  }
+};
+
+const getDataForSpecificLevel = async (req, res) => {
+  try {
+    const { workoutId } = req.params; // Get workoutId from params
+    const { level, stationNumber } = req.query; // Get level and stationNumber from query
+
+    // Validate query parameters
+    if (!level || !stationNumber || !workoutId) {
+      return res
+        .status(400)
+        .json({ error: "Workout ID, level, and station number are required." });
+    }
+
+    // Fetch the specific program that contains the workouts
+    const program = await Program.findOne({ "weeks.workouts._id": workoutId })
+      .populate("weeks.workouts.stations.exercises.sets") // Populate nested fields
+      .exec();
+
+    if (!program) {
+      return res
+        .status(404)
+        .json({ error: "No program found containing the specified workout." });
+    }
+
+    // Find the workout based on the workoutId across all weeks
+    let workout;
+    for (const week of program.weeks) {
+      workout = week.workouts.find((w) => w._id.toString() === workoutId);
+      if (workout) break; // Exit loop if workout is found
+    }
+
+    if (!workout) {
+      return res
+        .status(404)
+        .json({ error: "No workout found for the given ID." });
+    }
+
+    // Find the station in the workout data
+    const station = workout.stations.find(
+      (station) => station.stationNumber === parseInt(stationNumber)
+    );
+
+    if (!station) {
+      return res
+        .status(404)
+        .json({ error: `No station found with number ${stationNumber}.` });
+    }
+
+    // Filter exercises and their sets based on the selected level
+    const exercises = station.exercises
+      .map((exercise) => {
+        // Filter sets for the specific level
+        const filteredSets = exercise.sets
+          .filter((set) => set.level === level)
+          .map((set) => {
+            // Add common fields
+            const setData = {
+              level: set.level,
+              measurementType: set.measurementType,
+              previous: set.previous || 0, // Add previous field with default value 0
+              lbs: set.lbs || 0, // Add lbs field with default value 0
+              _id: set._id,
+            };
+
+            // Add specific fields based on measurementType
+            if (set.measurementType === "Reps") {
+              setData.reps = set.value || 0; // Add reps if measurementType is Reps
+            } else if (set.measurementType === "Time") {
+              setData.time = set.value || 0; // Add time if measurementType is Time
+            } else if (set.measurementType === "Distance") {
+              setData.distance = set.value || 0; // Add distance if measurementType is Distance
+            }
+
+            return setData;
+          });
+
+        // Return exercise only if it has sets for the specific level
+        if (filteredSets.length > 0) {
+          return {
+            exerciseName: exercise.exerciseName,
+            sets: filteredSets,
+            _id: exercise._id,
+          };
+        }
+      })
+      .filter(Boolean); // Remove undefined exercises (those without matching sets)
+
+    // Check if there are any exercises with matching sets
+    if (exercises.length === 0) {
+      return res
+        .status(404)
+        .json({ error: `No exercises found for level: ${level}.` });
+    }
+
+    // Return filtered exercises
+    return res.status(200).json({ exercises });
+  } catch (error) {
+    console.error("Error retrieving data for specific level:", error);
+    res.status(500).json({ msg: "Cannot return data for level" });
   }
 };
 
@@ -649,8 +810,8 @@ module.exports = {
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
-  getWeightData,
   editCompletedWorkout,
   getExercisesNames,
-  getExerciseByName,
+  searchExercise,
+  getDataForSpecificLevel,
 };

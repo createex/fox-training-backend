@@ -12,7 +12,8 @@ const {
   getCompletedWeeklyGoal,
   editCompletedWorkout,
   getExercisesNames,
-  getExerciseByName,
+  searchExercise,
+  getDataForSpecificLevel,
 } = require("../controllers/userworkOutLogController");
 const updateActiveStatus = require("../middleware/updateActiveStatus");
 
@@ -82,13 +83,13 @@ router.get(
 );
 
 //weight data for reps range
-router.get("/weight-data", authMiddleWare, updateActiveStatus, getWeightData);
 router.get("/exercises", authMiddleWare, updateActiveStatus, getExercisesNames);
 router.get(
   "/exercises/search",
   authMiddleWare,
   updateActiveStatus,
-  getExerciseByName
+  searchExercise
 );
+router.get("/exercises/level/:workoutId", getDataForSpecificLevel);
 
 module.exports = router;

@@ -39,6 +39,27 @@ const setSchema = new mongoose.Schema({
       );
     },
   },
+  reps: {
+    type: Number,
+    min: [0, "Reps cannot be negative"],
+    required: function () {
+      return this.measurementType === "Reps";
+    },
+  },
+  time: {
+    type: Number,
+    min: [0, "TIme cannot be negative"],
+    required: function () {
+      return this.measurementType === "Time";
+    },
+  },
+  distance: {
+    type: Number,
+    min: [0, "Distance cannot be negative"],
+    required: function () {
+      return this.measurementType === "Distance";
+    },
+  },
 });
 
 // Schema for each exercise within a station
