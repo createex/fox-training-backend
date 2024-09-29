@@ -8,7 +8,6 @@ const {
   changePassword,
   deleteTab,
   getAllTabs,
-  getLevelData,
   getAllUsernames,
 } = require("../controllers/tabSection");
 const verifyTabToken = require("../middleware/tabAuth");
@@ -22,7 +21,6 @@ router.post("/login", loginToTab);
 router.post("/user-login", verifyTabToken, userLoginToTab);
 router.post("/save-workout", verifyTabToken, saveWorkout);
 router.patch("/change-password/:tabId", verifyAuthToken, changePassword);
-router.get("/level-data", verifyTabToken, getLevelData);
 router.delete("/:tabId", verifyAuthToken, deleteTab);
 
 module.exports = router;

@@ -207,6 +207,7 @@ const saveWorkout = async (req, res) => {
   try {
     const { workOutId, userId, weekNumber, programId, station } = req.body;
     const tabId = req.tabId;
+    const previousWorkouts = await WorkOutLog.find({ userId });
 
     const tab = await Tab.findOne({ tabId });
     if (!tab) {
@@ -299,14 +300,17 @@ const saveWorkout = async (req, res) => {
       } else {
         user.workoutsInWeek += 1; // Increment weekly count
       }
-
-      await updateUserStreak(user._id);
       user.lastWorkoutDate = new Date();
 
       await user.save();
       await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
       await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
       await checkAndAddStreakAchievements(user._id, user.streaks);
+      await checkAndAddPersonalBestAwards({
+        userId: user._id,
+        newWorkout: workoutLog,
+        previousWorkouts,
+      });
     }
 
     // Save the updated workout log
@@ -375,129 +379,6 @@ const getAllUsernames = async (req, res) => {
   }
 };
 
-const getLevelData = async (req, res) => {
-  try {
-    const { level, username } = req.query;
-    const { tabId } = req;
-    // Find the tab and check if token matches
-    const tab = await Tab.findOne({ tabId });
-    if (!tab) return res.status(404).json({ message: "Tab not found" });
-
-    // Find the user
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    const workoutLog = await WorkoutLog.find({ userId: user._id, level });
-
-    // Fetch today's workout details
-    const {
-      workout: todaysWorkout,
-      programId,
-      weekNumber,
-    } = await fetchUserTodaysWorkout(res);
-    // console.log("todaysss workout ", JSON.stringify(todaysWorkout));
-
-    let existingWeekNumber;
-    let existingProgramId;
-    let existingWorkoutId;
-    let existingLevel;
-    // Check if the station has already been saved
-    let existingStation = null;
-    for (const log of workoutLog) {
-      // Exit the loop if a completed station is found
-      if (
-        log.workOutId.toString() === todaysWorkout._id.toString() &&
-        log.programId.toString() === programId.toString() &&
-        log.userId.toString() === user._id.toString()
-      ) {
-        if (log.level !== level) {
-          return res.status(500).json({
-            msg: `Your Level for this workout is ${log.level} You cannot select another level`,
-          });
-        }
-        existingProgramId = log.programId;
-        existingWeekNumber = log.weekNumber;
-        existingWorkoutId = log.workOutId;
-        existingLevel = log.level;
-        existingStation = log.stations.find(
-          (station) =>
-            station.completed === true &&
-            station.stationNumber === tab.stationNumber
-        );
-        if (existingStation) break;
-      }
-    }
-
-    if (existingStation) {
-      return res.status(200).json({
-        message: "Station data already saved",
-        workout: {
-          station: existingStation,
-          userId: user._id,
-          weekNumber: existingWeekNumber,
-          programId: existingProgramId,
-          workOutId: existingWorkoutId,
-          completed: true,
-          measurementType: existingStation.sets[0].measurementType,
-          level: existingLevel,
-        },
-      });
-    }
-
-    // Access the stations array
-    const stations = todaysWorkout.stations;
-
-    const targetStationNumber = tab.stationNumber;
-    const stationIndex = stations.findIndex(
-      (station) => station.stationNumber === targetStationNumber
-    );
-
-    let workout = {
-      station: {
-        exerciseName: todaysWorkout.stations[stationIndex].exerciseName,
-        stationNumber: todaysWorkout.stations[stationIndex].stationNumber,
-        sets: todaysWorkout.stations[stationIndex].sets
-          .filter((set) => set.level === level) // Only include Beginner sets
-          .map((set) => {
-            let setData = {
-              measurementType: set.measurementType,
-              previous: 0, // default
-              lbs: 0, // default
-              _id: set._id,
-            };
-
-            // Add specific fields based on measurement type
-            if (set.measurementType === "Time") {
-              setData.time = set.value;
-            } else if (set.measurementType === "Reps") {
-              setData.reps = set.value;
-            } else if (set.measurementType === "Distance") {
-              setData.distance = set.value;
-            }
-
-            return setData;
-          }),
-        _id: todaysWorkout.stations[stationIndex]._id,
-        completed: false, // Mark station as completed if applicable
-      },
-      userId: user._id,
-      weekNumber: weekNumber,
-      programId: programId,
-      workOutId: todaysWorkout._id,
-      measurementType:
-        todaysWorkout.stations[stationIndex].sets[0].measurementType,
-      completed: false,
-      level: level,
-    };
-
-    res.status(200).json({
-      message: "level data fetched",
-      workout,
-    });
-  } catch (error) {
-    return res.status(500).json({ msg: "unable to get level data" });
-  }
-};
 module.exports = {
   createTab,
   loginToTab,
@@ -507,5 +388,4 @@ module.exports = {
   changePassword,
   getAllTabs,
   getAllUsernames,
-  getLevelData,
 };

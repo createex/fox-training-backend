@@ -5,7 +5,15 @@ const WorkoutLog = require("../models/userWorkOutLog");
 const Program = require("../models/program");
 const mongoose = require("mongoose");
 
-// finding specific workout by id
+/**
+ * Retrieves a specific workout by its ID from the database.
+ * Searches all programs to find the workout, returning its details
+ * and associated week number if found; returns false if not found.
+ *
+ * @param {String} workOutId - The ID of the workout to find.
+ * @param {Object} res - The response object to send back data.
+ * @returns {Object|Boolean} - Workout details or false.
+ */
 const findWorkOutById = async (workOutId, res) => {
   // Find the program containing the workout with the given ID
   const program = await Program.findOne({
@@ -40,7 +48,12 @@ const findWorkOutById = async (workOutId, res) => {
   };
 };
 
-//================= helpers =====================
+/**
+ * Checks if a new week has started based on the last workout date.
+ *
+ * @param {Date} lastWorkoutDate - The date of the last workout.
+ * @returns {Boolean} - True if a new week has started, else false.
+ */
 const isNewWeek = (lastWorkoutDate) => {
   const currentDate = moment();
   const startOfCurrentWeek = currentDate.clone().startOf("week");
@@ -49,6 +62,12 @@ const isNewWeek = (lastWorkoutDate) => {
   return startOfLastWeek.isBefore(startOfCurrentWeek);
 };
 
+/**
+ * Determines if the last workout date is part of a continuous streak.
+ *
+ * @param {Date} lastWorkoutDate - The date of the last workout.
+ * @returns {Boolean} - True if last workout was yesterday, else false.
+ */
 const isPartOfStreak = (lastWorkoutDate) => {
   // Assuming streaks are based on consecutive weeks of workouts
   const currentDate = moment().startOf("day"); // Get current date without time
@@ -59,44 +78,39 @@ const isPartOfStreak = (lastWorkoutDate) => {
   return diffInDays;
 };
 
+/**
+ * Updates the user's workout streak based on their weekly goal.
+ *
+ * @param {String} userId - The ID of the user whose streak is to be updated.
+ * @returns {Promise<void>}
+ */
 const updateUserStreak = async (userId) => {
   try {
     const user = await User.findById(userId);
-    const currentDate = moment();
-    const endOfCurrentWeek = moment().endOf("isoWeek"); // End of the current week
-    const startOfCurrentWeek = moment().startOf("isoWeek"); // Start of the current week
-
-    // Only update if the current date is after the end of the current week
-    if (currentDate.isAfter(endOfCurrentWeek)) {
-      const completedWorkouts = await WorkoutLog.find({
-        userId: userId,
-        completed: true,
-        completedAt: {
-          $gte: startOfCurrentWeek.toDate(),
-          $lt: endOfCurrentWeek.toDate(),
-        },
-      });
-
-      // Check if the completed workouts meet the user's weekly goal
-      if (completedWorkouts.length >= user.weeklyWorkOutGoal) {
-        user.streaks += 1; // Increment streak
-      } else {
-        user.streaks = 0; // Reset streak if goal not met
-      }
-
-      // Update last workout date
-      user.lastWorkoutDate = currentDate.toDate();
-      await user.save();
+    // Check if workoutsInWeek meets or exceeds the user's weekly goal
+    if (user.workoutsInWeek >= user.weeklyWorkOutGoal) {
+      user.streaks += 1; // Increment streak
+    } else {
+      user.streaks = 0; // Reset streak if goal not met
     }
+    // Reset workoutsInWeek for the new week
+    user.workoutsInWeek = 0;
+    await user.save();
   } catch (error) {
     console.error("Error updating user streak:", error);
   }
 };
 
+/**
+ * Adds a new achievement for the user in the database.
+ *
+ * @param {String} userId - The ID of the user for whom the achievement is being added.
+ * @param {Object} newAchievement - The new achievement details to be added.
+ * @returns {Promise<void>}
+ */
 const addAchievement = async (userId, newAchievement) => {
   try {
     const userAcheivements = await Acheivements.find({ userId: userId });
-
     // Check if the achievement already exists with the same type and description
     const alreadyExists = userAcheivements.some(
       (achievement) =>
@@ -119,6 +133,14 @@ const addAchievement = async (userId, newAchievement) => {
     console.error("Error adding achievement:", error);
   }
 };
+
+/**
+ * Checks if the user has reached workout completion milestones and adds achievements.
+ *
+ * @param {String} userId - The ID of the user.
+ * @param {Number} workoutsCompleted - The total number of workouts completed by the user.
+ * @returns {Promise<void>}
+ */
 const checkAndAddWorkoutAchievements = async (userId, workoutsCompleted) => {
   const workOutMileStones = [1, 5, 10, 25, 50, 100, 200, 300, 400, 500]; // Add more milestones as needed
 
@@ -132,6 +154,13 @@ const checkAndAddWorkoutAchievements = async (userId, workoutsCompleted) => {
   }
 };
 
+/**
+ * Checks if the user has reached specific weekly workout milestones and adds achievements.
+ *
+ * @param {String} userId - The ID of the user.
+ * @param {Number} workoutsInWeek - The number of workouts completed in the week.
+ * @returns {Promise<void>}
+ */
 const checkAndAddWeeklyAchievements = async (userId, workoutsInWeek) => {
   const weeklyMilestones = [2, 3, 4, 5, 6, 7, 8, 9, 10, 13, 14, 15]; // Add more milestones as needed
 
@@ -145,6 +174,13 @@ const checkAndAddWeeklyAchievements = async (userId, workoutsInWeek) => {
   }
 };
 
+/**
+ * Checks if the user has reached specific streak milestones and adds achievements.
+ *
+ * @param {String} userId - The ID of the user.
+ * @param {Number} streak - The current streak count.
+ * @returns {Promise<void>}
+ */
 const checkAndAddStreakAchievements = async (userId, streak) => {
   if (streak >= 14) {
     await addAchievement(userId, {
@@ -171,24 +207,20 @@ const checkAndAddStreakAchievements = async (userId, streak) => {
     });
   }
 };
-// const checkAndAddPersonalBestAwards = async (userId, totalWorkouts) => {
-//   const milestones = [1, 3, 5, 10, 20, 50, 75, 100, 150, 200, 250, 300];
-//   for (const milestone of milestones) {
-//     if (totalWorkouts === milestone) {
-//       await addAchievement(userId, {
-//         acheivementType: `${milestone}`,
-//         category: "personal_best",
-//       });
-//     }
-//   }
-// };
+
+/**
+ * Checks for new personal bests and updates achievements accordingly.
+ *
+ * @param {Object} params - Contains userId, newWorkout, and previousWorkouts.
+ * @returns {Promise<void>}
+ */
 const checkAndAddPersonalBestAwards = async ({
   userId,
   newWorkout,
   previousWorkouts,
 }) => {
   try {
-    // Fetch the latest personal best achievement for the user
+    // Fetch the user document
     const user = await User.findById(userId);
 
     // Determine the next milestone in the sequence
@@ -199,31 +231,38 @@ const checkAndAddPersonalBestAwards = async ({
       (milestone) => milestone > user.personalBestCounter
     );
 
-    // Determine the maximum values for reps and lbs
-    let maxReps = 0;
+    // Initialize the maximum lbs from previous workouts
     let maxLbs = 0;
+
+    // Iterate through previous workouts to find the max lbs
     for (const workout of previousWorkouts) {
       for (const station of workout.stations) {
-        for (const set of station.sets) {
-          maxReps = Math.max(maxReps, set.reps);
-          maxLbs = Math.max(maxLbs, set.lbs);
+        for (const exercise of station.exercises) {
+          for (const set of exercise.sets) {
+            maxLbs = Math.max(maxLbs, set.lbs);
+          }
         }
       }
     }
 
-    // Initialize flags for checking personal best
+    // Initialize flag for checking personal best
     let isNewPersonalBest = false;
-    // Compare current workout data against previous best values
+
+    // Compare the new workout data against the previous max lbs
     for (const station of newWorkout.stations) {
-      for (const set of station.sets) {
-        const { lbs, reps } = set;
-        // Check if either reps or lbs is greater than the previous maximum
-        if (reps > maxReps || lbs > maxLbs) {
-          isNewPersonalBest = true;
-          break; // No need to check further once a new best is found
+      for (const exercise of station.exercises) {
+        for (const set of exercise.sets) {
+          const { lbs } = set;
+
+          // Check if the current lbs is greater than the previous maximum
+          if (lbs > maxLbs) {
+            isNewPersonalBest = true;
+            break; // Stop checking once a new best is found
+          }
         }
+        if (isNewPersonalBest) break; // Stop checking if new personal best is found
       }
-      if (isNewPersonalBest) break;
+      if (isNewPersonalBest) break; // Stop checking if new personal best is found
     }
 
     // Increment personal best counter and add achievement if milestone is reached
@@ -247,6 +286,13 @@ const checkAndAddPersonalBestAwards = async ({
   }
 };
 
+/**
+ * Fetches today's workout details from the program.
+ *
+ * @param {Object} res - The response object.
+ * @returns {Promise<Object>} - An object containing the program ID, week number, and today's workout details.
+ * @throws {Error} - Throws an error if no workout is found for today.
+ */
 const fetchUserTodaysWorkout = async (res) => {
   const startOfDay = moment().startOf("day").toDate();
   const endOfDay = moment().endOf("day").toDate();
@@ -293,6 +339,12 @@ const fetchUserTodaysWorkout = async (res) => {
   };
 };
 
+/**
+ * Gets the MongoDB filter for a specified time period.
+ *
+ * @param {string} timePeriod - The time period for filtering (e.g., "1_week", "1_month").
+ * @returns {Object} - A MongoDB date query object for the specified time period.
+ */
 function getTimeFilter(timePeriod) {
   const now = new Date(); // Current date
 
@@ -310,40 +362,6 @@ function getTimeFilter(timePeriod) {
   }
 }
 
-async function fetchWeightData(repRange, timePeriod, userId) {
-  const [minReps, maxReps] = repRange.split("-").map(Number);
-  const timeFilter = getTimeFilter(timePeriod); // Function to convert the timePeriod to MongoDB date query format
-
-  // Query the database
-  const result = await WorkoutLog.aggregate([
-    {
-      $match: {
-        userId: new mongoose.Types.ObjectId(userId),
-        completedAt: timeFilter,
-      },
-    }, // Filter by user and time
-    { $unwind: "$stations" },
-    { $unwind: "$stations.sets" },
-    {
-      $match: {
-        "stations.sets.reps": { $gte: minReps, $lte: maxReps },
-      },
-    },
-    {
-      $group: {
-        _id: "$completedAt",
-        weightData: { $push: "$stations.sets.lbs" },
-      },
-    },
-    { $sort: { _id: 1 } }, // Sort by date
-  ]);
-
-  return result.map((data) => ({
-    date: data._id,
-    lbs: data.weightData,
-  }));
-}
-
 module.exports = {
   isNewWeek,
   isPartOfStreak,
@@ -354,6 +372,5 @@ module.exports = {
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
   getTimeFilter,
-  fetchWeightData,
   updateUserStreak,
 };

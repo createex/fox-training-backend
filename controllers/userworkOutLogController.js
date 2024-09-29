@@ -11,8 +11,6 @@ const {
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
-  fetchWeightData,
-  updateUserStreak,
 } = require("../utils/userWorkOutLog");
 const UserAcheivements = require("../models/userAcheivements");
 const ExercisesNames = require("../models/exerciesNames");
@@ -164,6 +162,7 @@ const finishWorkOut = async (req, res) => {
       completed: true,
       workOutId,
     });
+    const previousWorkouts = await WorkOutLog.find({ userId });
 
     if (alreadyFinished) {
       return res.status(400).json({ msg: "Workout Already Finished" });
@@ -255,19 +254,17 @@ const finishWorkOut = async (req, res) => {
     } else {
       user.workoutsInWeek += 1; // Incrementing the weekly count
     }
-
-    await updateUserStreak(user._id);
     user.lastWorkoutDate = new Date();
 
     await user.save();
     await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
     await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
     await checkAndAddStreakAchievements(user._id, user.streaks);
-    // await checkAndAddPersonalBestAwards({
-    //   userId: user._id,
-    //   newWorkout,
-    //   previousWorkouts,
-    // });
+    await checkAndAddPersonalBestAwards({
+      userId: user._id,
+      newWorkout,
+      previousWorkouts,
+    });
 
     res.status(201).json({ msg: "Workout completed successfully" });
   } catch (error) {
