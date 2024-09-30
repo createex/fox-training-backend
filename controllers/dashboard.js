@@ -136,6 +136,7 @@ const userWeeklyWorkoutGoal = async (req, res) => {
         weeklyWorkOutGoal: 1,
         totalWorkouts: 1,
         streaks: 1,
+        personalBestCounter: 1,
       }
     )
       .skip(skip)
