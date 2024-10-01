@@ -38,7 +38,7 @@ const startWorkOut = async (req, res) => {
     const { workOutId } = req.params;
 
     // Default level to "Beginner"
-    const level = "Beginner";
+    const level = "Level 1";
 
     // Find the workout by ID
     const fetchedWorkout = await findWorkOutById(workOutId, res);

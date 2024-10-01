@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const setSchema = new mongoose.Schema({
   level: {
     type: String,
-    enum: ["Beginner", "Intermediate", "Advanced"],
+    enum: ["Level 1", "Level 2", "Level 3"],
     required: true,
   },
   value: { type: Number, required: true }, // reps, time, or distance value

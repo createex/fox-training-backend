@@ -9,7 +9,7 @@ function arrayLimit(val) {
 const setSchema = new mongoose.Schema({
   level: {
     type: String,
-    enum: ["Beginner", "Intermediate", "Advanced"],
+    enum: ["Level 1", "Level 2", "Level 3"],
     required: true,
   },
   measurementType: {
