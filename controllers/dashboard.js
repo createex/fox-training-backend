@@ -319,31 +319,16 @@ const userRecentAcheivement = async (req, res) => {
  */
 
 const addExercise = async (req, res) => {
-  const { exerciseName, sets } = req.body;
+  const { exerciseName } = req.body;
 
   try {
-    // Validate that name and sets are provided
-    if (!exerciseName || !sets || sets.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "Exercise name and sets are required" });
-    }
-
-    // Check if all sets have the same measurementType
-    const firstMeasurementType = sets[0].measurementType; // Get the measurementType of the first set
-    const allSameMeasurementType = sets.every(
-      (set) => set.measurementType === firstMeasurementType
-    );
-
-    if (!allSameMeasurementType) {
-      return res.status(400).json({
-        error:
-          "All sets must have the same measurement type (e.g., all 'Reps', 'Time', or 'Distance').",
-      });
+    // Validate that name is  provided
+    if (!exerciseName) {
+      return res.status(400).json({ error: "Exercise name is required" });
     }
 
     // Create and save the new exercise
-    const newExercise = new ExerciseName({ exerciseName, sets });
+    const newExercise = new ExerciseName({ exerciseName });
     await newExercise.save();
 
     res
@@ -420,33 +405,18 @@ const getAllExercise = async (req, res) => {
 
 const updateExercise = async (req, res) => {
   const { exerciseId } = req.params; // The ID of the exercise to update
-  const { exerciseName, sets } = req.body; // The new data for the exercise
+  const { exerciseName } = req.body; // The new data for the exercise
 
   try {
     // Validate that exercise name and sets are provided
-    if (!exerciseName || !sets || sets.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "Exercise name and sets are required" });
-    }
-
-    // Validate that all sets have the same measurementType
-    const firstMeasurementType = sets[0].measurementType;
-    const allSameMeasurementType = sets.every(
-      (set) => set.measurementType === firstMeasurementType
-    );
-
-    if (!allSameMeasurementType) {
-      return res.status(400).json({
-        error:
-          "All sets must have the same measurement type (e.g., all 'Reps', 'Time', or 'Distance').",
-      });
+    if (!exerciseName) {
+      return res.status(400).json({ error: "Exercise name is required" });
     }
 
     // Find and update the exercise by ID
     const updatedExercise = await ExerciseName.findByIdAndUpdate(
       exerciseId,
-      { exerciseName, sets }, // Fields to update
+      { exerciseName }, // Fields to update
       { new: true, runValidators: true } // Return the updated document
     );
 
