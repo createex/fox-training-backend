@@ -159,7 +159,7 @@ const userLoginToTab = async (req, res) => {
           (exercise) => ({
             exerciseName: exercise.exerciseName,
             sets: exercise.sets
-              .filter((set) => set.level === "Beginner") // Only include Beginner sets
+              .filter((set) => set.level === "Level 1") // Only include Beginner sets
               .map((set) => {
                 let setData = {
                   measurementType: set.measurementType,
