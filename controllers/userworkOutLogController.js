@@ -792,7 +792,6 @@ const getDataForSpecificLevel = async (req, res) => {
       exercise: {
         exerciseName: exercise.exerciseName,
         sets: filteredSets,
-        _id: exercise._id,
       },
     });
   } catch (error) {
