@@ -316,7 +316,7 @@ const addWorkoutToWeek = async (req, res) => {
 // Update a workout in a specific week
 const updateWorkoutInWeek = async (req, res) => {
   const { programId, workoutId } = req.params;
-  const { image, name, numberOfStations, stations, date } = req.body;
+  const { image, name, numberOfStations, stations, date, duration } = req.body;
 
   try {
     const program = await Program.findById(programId);
@@ -399,7 +399,7 @@ const updateWorkoutInWeek = async (req, res) => {
         week.workouts[workoutIndex].numberOfStations = numberOfStations;
         week.workouts[workoutIndex].stations = stations;
         week.workouts[workoutIndex].date = date;
-
+        week.workouts[workoutId].duration = duration;
         weekFound = true;
         break;
       }
@@ -415,7 +415,9 @@ const updateWorkoutInWeek = async (req, res) => {
     return res.status(200).json({ message: "Workout updated successfully" });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Error updating workout", error });
+    return res
+      .status(500)
+      .json({ message: `Error Updating workout ${error.message}` });
   }
 };
 
