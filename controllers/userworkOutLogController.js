@@ -113,7 +113,6 @@ const startWorkOut = async (req, res) => {
     const workoutData = {
       stations: filteredStations,
       weekNumber: fetchedWorkout.weekNumber,
-      programTitle: fetchedWorkout.programTitle,
       programId: fetchedWorkout.programId,
       workOutId: fetchedWorkout.workout._id,
     };
@@ -127,7 +126,6 @@ const startWorkOut = async (req, res) => {
         workout: {
           stations: alreadyFinished.stations,
           weekNumber: alreadyFinished.weekNumber,
-          programTitle: alreadyFinished.programTitle,
           programId: alreadyFinished.programId,
           completed: alreadyFinished.completed,
           workOutId: alreadyFinished.workOutId,
