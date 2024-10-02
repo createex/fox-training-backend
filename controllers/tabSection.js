@@ -8,13 +8,11 @@ const WorkoutLog = require("../models/userWorkOutLog");
 const {
   findWorkOutById,
   isNewWeek,
-  isPartOfStreak,
   checkAndAddStreakAchievements,
   checkAndAddWeeklyAchievements,
   checkAndAddWorkoutAchievements,
   checkAndAddPersonalBestAwards,
   fetchUserTodaysWorkout,
-  updateUserStreak,
 } = require("../utils/userWorkOutLog");
 
 const createTab = async (req, res) => {
