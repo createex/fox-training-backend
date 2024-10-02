@@ -99,10 +99,13 @@ const startWorkOut = async (req, res) => {
     }
 
     // Check if the user has already finished the workout
-    const alreadyFinished = await WorkOutLog.findOne({
-      workOutId,
-      userId: req.user._id,
-    });
+    const alreadyFinished = await WorkOutLog.findOne(
+      {
+        workOutId,
+        userId: req.user._id,
+      },
+      { "stations.exercises._id": 0 }
+    );
 
     // Prepare response data structure
     const workoutData = {
