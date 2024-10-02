@@ -399,7 +399,7 @@ const updateWorkoutInWeek = async (req, res) => {
         week.workouts[workoutIndex].numberOfStations = numberOfStations;
         week.workouts[workoutIndex].stations = stations;
         week.workouts[workoutIndex].date = date;
-        week.workouts[workoutId].duration = duration;
+        week.workouts[workoutIndex].duration = duration;
         weekFound = true;
         break;
       }
