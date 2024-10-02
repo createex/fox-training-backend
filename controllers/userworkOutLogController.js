@@ -119,7 +119,6 @@ const startWorkOut = async (req, res) => {
         alreadyFinished.stations[0].exercises[0].sets[0].measurementType;
 
       return res.status(200).json({
-        msg: "This workout has already been finished by the user",
         workout: {
           stations: alreadyFinished.stations,
           weekNumber: alreadyFinished.weekNumber,
