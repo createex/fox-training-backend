@@ -46,8 +46,6 @@ const startWorkOut = async (req, res) => {
       return res.status(500).json({ msg: "Workout not found" });
     }
 
-    console.log(fetchedWorkout); // Debugging line to check the workout structure
-
     const fetchedMeasurementType =
       fetchedWorkout.workout.stations[0].exercises[0].sets[0].measurementType;
 
@@ -108,13 +106,13 @@ const startWorkOut = async (req, res) => {
       },
       { "stations.exercises._id": 0 }
     );
-
     // Prepare response data structure
     const workoutData = {
       stations: filteredStations,
       weekNumber: fetchedWorkout.weekNumber,
       programId: fetchedWorkout.programId,
       workOutId: fetchedWorkout.workout._id,
+      programTitle: fetchedWorkout.programTitle,
     };
 
     if (alreadyFinished) {
@@ -130,6 +128,7 @@ const startWorkOut = async (req, res) => {
           completed: alreadyFinished.completed,
           workOutId: alreadyFinished.workOutId,
           measurementType,
+          programTitle: fetchedWorkout.programTitle,
         },
       });
     }
