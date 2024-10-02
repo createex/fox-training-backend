@@ -55,6 +55,7 @@ const startWorkOut = async (req, res) => {
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
         stationNumber: station.stationNumber,
+        completed: false,
         exercises: station.exercises
           .filter((exercise) =>
             exercise.sets.some(
@@ -63,7 +64,7 @@ const startWorkOut = async (req, res) => {
           )
           .map((exercise) => ({
             exerciseName: exercise.exerciseName,
-            completed: false,
+
             sets: exercise.sets
               .filter((set) => set.level.toLowerCase() === level.toLowerCase())
               .map((set) => {
