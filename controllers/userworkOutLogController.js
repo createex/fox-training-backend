@@ -484,16 +484,10 @@ const editCompletedWorkout = async (req, res) => {
         .json({ error: "No workout completed with this Id" });
     }
 
-    const { numberOfStations, stations } = req.body;
+    const { stations } = req.body;
 
-    if (!numberOfStations || !stations) {
-      return res.status(400).json({ error: "Must provide all field values" });
-    }
-
-    if (stations.length !== numberOfStations) {
-      return res.status(400).json({
-        error: `Stations ${stations.length} is not the same as numberOfStations ${numberOfStations}`,
-      });
+    if (!stations) {
+      return res.status(400).json({ error: "stations required" });
     }
 
     // Validate each station for required fields and sets
@@ -546,13 +540,11 @@ const editCompletedWorkout = async (req, res) => {
     }
 
     // Update the workout details
-    workout.numberOfStations = numberOfStations;
+    workout.numberOfStations = stations.length;
     workout.stations = stations;
 
     await workout.save();
-    return res
-      .status(200)
-      .json({ msg: "Workout updated successfully", workout });
+    return res.status(200).json({ msg: "Workout updated successfully" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ msg: "Unable to update workout", error });
