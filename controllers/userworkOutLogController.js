@@ -53,6 +53,7 @@ const startWorkOut = async (req, res) => {
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
         stationNumber: station.stationNumber,
+        level: station.exercises[0].sets[0].level,
         completed: false,
         exercises: station.exercises
           .filter((exercise) =>
@@ -120,9 +121,18 @@ const startWorkOut = async (req, res) => {
       const measurementType =
         alreadyFinished.stations[0].exercises[0].sets[0].measurementType;
 
+      alreadyFinished.stations[0].exercises[0].sets[0].measurementType;
+      const alreadyFinishedStations = alreadyFinished.stations.map(
+        (station) => {
+          const plainStation = station.toObject(); // Convert Mongoose document to plain JS object
+          plainStation.level = station.exercises[0].sets[0].level; // Add level
+          return plainStation;
+        }
+      );
+
       return res.status(200).json({
         workout: {
-          stations: alreadyFinished.stations,
+          stations: alreadyFinishedStations,
           weekNumber: alreadyFinished.weekNumber,
           programId: alreadyFinished.programId,
           completed: alreadyFinished.completed,
