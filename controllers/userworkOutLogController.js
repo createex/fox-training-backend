@@ -53,7 +53,6 @@ const startWorkOut = async (req, res) => {
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
         stationNumber: station.stationNumber,
-        level: station.exercises[0].sets[0].level,
         completed: false,
         exercises: station.exercises
           .filter((exercise) =>
@@ -63,6 +62,7 @@ const startWorkOut = async (req, res) => {
           )
           .map((exercise) => ({
             exerciseName: exercise.exerciseName,
+            level: exercise.sets[0].level,
 
             sets: exercise.sets
               .filter((set) => set.level.toLowerCase() === level.toLowerCase())
@@ -120,12 +120,13 @@ const startWorkOut = async (req, res) => {
       // Get a single measurement type from the fetched workout
       const measurementType =
         alreadyFinished.stations[0].exercises[0].sets[0].measurementType;
-
-      alreadyFinished.stations[0].exercises[0].sets[0].measurementType;
       const alreadyFinishedStations = alreadyFinished.stations.map(
         (station) => {
           const plainStation = station.toObject(); // Convert Mongoose document to plain JS object
-          plainStation.level = station.exercises[0].sets[0].level; // Add level
+          plainStation.exercises.map((exercise) => {
+            exercise.level = exercise.sets[0].level;
+            return exercise;
+          });
           return plainStation;
         }
       );
