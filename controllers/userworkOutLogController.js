@@ -795,6 +795,7 @@ const getDataForSpecificLevel = async (req, res) => {
     return res.status(200).json({
       exercise: {
         exerciseName: exercise.exerciseName,
+        level: filteredSets[0].level,
         sets: filteredSets,
       },
     });
