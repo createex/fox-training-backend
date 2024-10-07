@@ -120,10 +120,18 @@ const userLoginToTab = async (req, res) => {
     }
 
     if (existingStation) {
+      const completedStations = existingStation.map((station) => {
+        const plainStation = station.toObject(); // Convert Mongoose document to plain JS object
+        plainStation.exercises.map((exercise) => {
+          exercise.level = exercise.sets[0].level;
+          return exercise;
+        });
+        return plainStation;
+      });
       return res.status(200).json({
         message: "Station data already saved",
         workout: {
-          station: existingStation,
+          station: completedStations,
           userId: user._id,
           weekNumber: existingStation.weekNumber, // Use the existing station's weekNumber
           programId: existingStation.programId, // Use the existing station's programId
@@ -156,6 +164,7 @@ const userLoginToTab = async (req, res) => {
         exercises: todaysWorkout.stations[stationIndex].exercises.map(
           (exercise) => ({
             exerciseName: exercise.exerciseName,
+            level: exercise.sets[0].level,
             sets: exercise.sets
               .filter((set) => set.level === "Level 1") // Only include Beginner sets
               .map((set) => {
