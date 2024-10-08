@@ -40,7 +40,6 @@ async function uploadToAzureBlob(fileBuffer, fileName) {
   await blockBlobClient.uploadData(fileBuffer);
   return blockBlobClient.url;
 }
-// Add a new program with default weeks
 const addProgram = async (req, res) => {
   const { title, startDate, endDate } = req.body;
 
@@ -58,8 +57,6 @@ const addProgram = async (req, res) => {
   if (normalizedEndDate.isBefore(currentDate)) {
     return res.status(400).json({ message: "End date cannot be in the past." });
   }
-
-  // Define default weeks structure
   const defaultWeeks = [
     {
       weekNumber: 1,
@@ -80,6 +77,23 @@ const addProgram = async (req, res) => {
   ];
 
   try {
+    // Check for overlapping program dates
+    const existingPrograms = await Program.find({});
+    const filterPrograms = existingPrograms.find((program) => {
+      return program.endDate > normalizedStartDate;
+    });
+    const checkDates = normalizedStartDate > normalizedEndDate;
+    if (checkDates) {
+      return res.status(400).json({
+        message: "Start date cannot be greater than end date",
+      });
+    }
+    if (filterPrograms) {
+      return res.status(400).json({
+        message: "New program cannot overlap with existing program end dates.",
+      });
+    }
+
     const newProgram = new Program({
       title,
       startDate,
@@ -92,6 +106,8 @@ const addProgram = async (req, res) => {
       .status(201)
       .json({ message: "Program added successfully", program: newProgram });
   } catch (error) {
+    console.log(error);
+
     res.status(500).json({ message: "Error adding program", error });
   }
 };
