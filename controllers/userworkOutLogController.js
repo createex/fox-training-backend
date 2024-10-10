@@ -593,7 +593,6 @@ const searchExercise = async (req, res) => {
         end: moment().endOf("month"),
       },
       "3_months": { start: moment().subtract(3, "months"), end: moment() },
-
       "6_months": { start: moment().subtract(6, "months"), end: moment() },
       "1_year": { start: moment().subtract(1, "year"), end: moment() },
     };
@@ -621,9 +620,11 @@ const searchExercise = async (req, res) => {
     }).select("stations.exercises");
 
     if (!measurementTypeDoc) {
-      return res.status(404).json({
-        error: `No exercises found with the given name for the selected timeframe`,
-      });
+      return res
+        .status(404)
+        .json({
+          error: `No exercises found with the given name for the selected timeframe`,
+        });
     }
 
     const measurementType =
@@ -675,7 +676,7 @@ const searchExercise = async (req, res) => {
           },
         },
       },
-    }).select("stations.exercises -_id");
+    }).select("stations.exercises completedAt -_id");
 
     const exerciseData = workoutLogs.reduce(
       (result, log) => {
@@ -691,6 +692,10 @@ const searchExercise = async (req, res) => {
                   );
                   result.lbs.push(set.lbs);
                   result.measurementType = measurementType;
+                  if (!result.dates) result.dates = [];
+                  result.dates.push(
+                    moment(log.completedAt).format("YYYY-MM-DD")
+                  );
                 }
               });
             }
@@ -698,7 +703,14 @@ const searchExercise = async (req, res) => {
         });
         return result;
       },
-      { reps: [], time: [], distance: [], lbs: [], measurementType: null }
+      {
+        reps: [],
+        time: [],
+        distance: [],
+        lbs: [],
+        measurementType: null,
+        dates: [],
+      }
     );
 
     // Remove empty arrays except for measurementType array and lbs
@@ -707,7 +719,8 @@ const searchExercise = async (req, res) => {
         Array.isArray(exerciseData[key]) &&
         exerciseData[key].length === 0 &&
         key !== measurementType.toLowerCase() &&
-        key !== "lbs"
+        key !== "lbs" &&
+        key !== "dates"
       ) {
         delete exerciseData[key];
       }
