@@ -592,6 +592,8 @@ const searchExercise = async (req, res) => {
         start: moment().startOf("month"),
         end: moment().endOf("month"),
       },
+      "3_months": { start: moment().subtract(3, "months"), end: moment() },
+
       "6_months": { start: moment().subtract(6, "months"), end: moment() },
       "1_year": { start: moment().subtract(1, "year"), end: moment() },
     };
