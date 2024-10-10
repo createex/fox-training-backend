@@ -620,15 +620,14 @@ const searchExercise = async (req, res) => {
     }).select("stations.exercises");
 
     if (!measurementTypeDoc) {
-      return res
-        .status(404)
-        .json({
-          error: `No exercises found with the given name for the selected timeframe`,
-        });
+      return res.status(404).json({
+        error: `No exercises found with the given name for the selected timeframe`,
+      });
     }
 
     const measurementType =
       measurementTypeDoc.stations[0].exercises[0].sets[0].measurementType;
+    const measurementTypeLower = measurementType.toLowerCase();
 
     let rangeQuery = {};
     if (range) {
@@ -651,13 +650,13 @@ const searchExercise = async (req, res) => {
       }
       rangeQuery = {
         $elemMatch: {
-          [measurementType.toLowerCase()]: { $gte: minRange, $lte: maxRange },
+          [measurementTypeLower]: { $gte: minRange, $lte: maxRange },
         },
       };
     } else {
       rangeQuery = {
         $elemMatch: {
-          [measurementType.toLowerCase()]: { $exists: true },
+          [measurementTypeLower]: { $exists: true },
         },
       };
     }
@@ -680,6 +679,8 @@ const searchExercise = async (req, res) => {
 
     const exerciseData = workoutLogs.reduce(
       (result, log) => {
+        const date = moment(log.completedAt).format("YYYY-MM-DD");
+
         log.stations.forEach((station) => {
           station.exercises.forEach((exercise) => {
             if (
@@ -687,15 +688,21 @@ const searchExercise = async (req, res) => {
             ) {
               exercise.sets.forEach((set) => {
                 if (set.measurementType === measurementType) {
-                  result[measurementType.toLowerCase()].push(
-                    set[measurementType.toLowerCase()]
-                  );
-                  result.lbs.push(set.lbs);
-                  result.measurementType = measurementType;
-                  if (!result.dates) result.dates = [];
-                  result.dates.push(
-                    moment(log.completedAt).format("YYYY-MM-DD")
-                  );
+                  if (!result.dates.includes(date)) {
+                    result.dates.push(date);
+                    result[measurementTypeLower][date] =
+                      set[measurementTypeLower];
+                    result.lbs[date] = set.lbs;
+                  } else {
+                    if (
+                      set[measurementTypeLower] >
+                      result[measurementTypeLower][date]
+                    ) {
+                      result[measurementTypeLower][date] =
+                        set[measurementTypeLower];
+                      result.lbs[date] = set.lbs;
+                    }
+                  }
                 }
               });
             }
@@ -704,34 +711,29 @@ const searchExercise = async (req, res) => {
         return result;
       },
       {
-        reps: [],
-        time: [],
-        distance: [],
-        lbs: [],
-        measurementType: null,
+        [measurementTypeLower]: {},
+        lbs: {},
+        measurementType: measurementType,
         dates: [],
       }
     );
 
-    // Remove empty arrays except for measurementType array and lbs
-    Object.keys(exerciseData).forEach((key) => {
-      if (
-        Array.isArray(exerciseData[key]) &&
-        exerciseData[key].length === 0 &&
-        key !== measurementType.toLowerCase() &&
-        key !== "lbs" &&
-        key !== "dates"
-      ) {
-        delete exerciseData[key];
-      }
-    });
+    const transformedData = {
+      measurementType: exerciseData.measurementType,
+      [exerciseData.measurementType.toLowerCase()]: Object.values(
+        exerciseData[exerciseData.measurementType.toLowerCase()]
+      ),
+      lbs: Object.values(exerciseData.lbs),
+      dates: exerciseData.dates,
+    };
 
-    res.status(200).json(exerciseData);
+    res.status(200).json(transformedData);
   } catch (error) {
     console.error("Error searching exercises:", error);
     res.status(500).json({ error: "Failed to search exercises" });
   }
 };
+
 const getDataForSpecificLevel = async (req, res) => {
   try {
     const { workoutId } = req.params; // Get workoutId from params
