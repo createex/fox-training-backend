@@ -578,128 +578,145 @@ const getExercisesNames = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch exercises" });
   }
 };
-
 const searchExercise = async (req, res) => {
   try {
-    const { name } = req.query; // Only require name in query
+    const { exerciseName, timeframe = "1_month", range } = req.query;
     const userId = req.user._id;
 
-    if (!name) {
+    if (!exerciseName) {
       return res.status(400).json({ error: "Please provide an exercise name" });
     }
 
-    // Get the current month
-    const startOfMonth = moment().startOf("month").toDate();
-    const endOfMonth = moment().endOf("month").toDate();
-
-    // Search in workoutLog based on userId, exerciseName, and the current month range
-    const workoutLogs = await WorkOutLog.find({
-      userId,
-      completedAt: {
-        $gte: startOfMonth,
-        $lte: endOfMonth,
+    const timeframeMap = {
+      "1_month": {
+        start: moment().startOf("month"),
+        end: moment().endOf("month"),
       },
+      "6_months": { start: moment().subtract(6, "months"), end: moment() },
+      "1_year": { start: moment().subtract(1, "year"), end: moment() },
+    };
+
+    if (!timeframeMap[timeframe]) {
+      return res.status(400).json({ error: `Invalid timeframe: ${timeframe}` });
+    }
+
+    const { start, end } = timeframeMap[timeframe];
+
+    // Determine measurement type
+    const measurementTypeDoc = await WorkOutLog.findOne({
+      userId,
+      completedAt: { $gte: start.toDate(), $lte: end.toDate() },
       stations: {
         $elemMatch: {
           exercises: {
             $elemMatch: {
-              exerciseName: { $regex: name, $options: "i" }, // Case-insensitive search for exercise name
+              exerciseName: { $regex: exerciseName, $options: "i" },
+              "sets.measurementType": { $ne: null },
             },
           },
         },
       },
-    }).select("stations.completedAt stations.exercises -_id");
+    }).select("stations.exercises");
 
-    // Helper function to get the current week of the month
-    const getWeekOfMonth = (date) => {
-      const currentWeek = Math.ceil(moment(date).date() / 7); // Get the week number (1-4 or 1-5)
-      return `Week ${currentWeek}`;
-    };
-
-    // Organize results into weeks for the current month
-    const groupedByWeeks = workoutLogs.reduce((result, log) => {
-      log.stations.forEach((station) => {
-        station.exercises.forEach((exercise) => {
-          if (
-            exercise.exerciseName.toLowerCase().includes(name.toLowerCase())
-          ) {
-            const week = getWeekOfMonth(log.completedAt);
-
-            // If the week doesn't exist, create it
-            if (!result[week]) {
-              result[week] = [];
-            }
-
-            // Check if the exercise already exists in the current week
-            let existingExercise = result[week].find(
-              (e) => e.exerciseName === exercise.exerciseName
-            );
-
-            if (!existingExercise) {
-              // If the exercise doesn't exist, initialize it with empty arrays
-              existingExercise = {
-                exerciseName: exercise.exerciseName,
-                measurementType: exercise.sets[0]?.measurementType || "",
-                reps: [],
-                lbs: [],
-                // Only initialize the fields relevant to the measurement type
-                ...(exercise.sets[0]?.measurementType === "Reps" && {
-                  time: undefined,
-                  distance: undefined,
-                }),
-                ...(exercise.sets[0]?.measurementType === "Time" && {
-                  reps: undefined,
-                  lbs: undefined,
-                  distance: undefined,
-                }),
-                ...(exercise.sets[0]?.measurementType === "Distance" && {
-                  reps: undefined,
-                  lbs: undefined,
-                  time: undefined,
-                }),
-              };
-              result[week].push(existingExercise);
-            }
-
-            // Populate relevant fields based on the set's measurement type
-            exercise.sets.forEach((set) => {
-              if (set.measurementType === "Reps") {
-                if (set.reps !== undefined) {
-                  existingExercise.reps.push(set.reps);
-                  existingExercise.lbs.push(set.lbs); // lbs is relevant for Reps
-                }
-              } else if (set.measurementType === "Time") {
-                if (set.time !== undefined) {
-                  existingExercise.time.push(set.time);
-                  existingExercise.lbs.push(set.lbs);
-                }
-              } else if (set.measurementType === "Distance") {
-                if (set.distance !== undefined) {
-                  existingExercise.distance.push(set.distance);
-                  existingExercise.lbs.push(set.lbs);
-                }
-              }
-            });
-          }
-        });
-      });
-      return result;
-    }, {});
-
-    if (Object.keys(groupedByWeeks).length === 0) {
+    if (!measurementTypeDoc) {
       return res.status(404).json({
-        error: "No exercises found with the given name for the current month",
+        error: `No exercises found with the given name for the selected timeframe`,
       });
     }
 
-    // Respond with grouped data by week within the current month
-    res.status(200).json({ data: groupedByWeeks });
+    const measurementType =
+      measurementTypeDoc.stations[0].exercises[0].sets[0].measurementType;
+
+    let rangeQuery = {};
+    if (range) {
+      const rangeParts = range.split("-");
+      if (rangeParts.length !== 2) {
+        return res
+          .status(400)
+          .json({ error: `Invalid range format. Expected: min-max` });
+      }
+      const minRange = parseInt(rangeParts[0]);
+      const maxRange = parseInt(rangeParts[1]);
+      if (
+        isNaN(minRange) ||
+        isNaN(maxRange) ||
+        minRange < 0 ||
+        maxRange < 0 ||
+        minRange > maxRange
+      ) {
+        return res.status(400).json({ error: `Invalid range values` });
+      }
+      rangeQuery = {
+        $elemMatch: {
+          [measurementType.toLowerCase()]: { $gte: minRange, $lte: maxRange },
+        },
+      };
+    } else {
+      rangeQuery = {
+        $elemMatch: {
+          [measurementType.toLowerCase()]: { $exists: true },
+        },
+      };
+    }
+
+    const workoutLogs = await WorkOutLog.find({
+      userId,
+      completedAt: { $gte: start.toDate(), $lte: end.toDate() },
+      stations: {
+        $elemMatch: {
+          exercises: {
+            $elemMatch: {
+              exerciseName: { $regex: exerciseName, $options: "i" },
+              sets: rangeQuery,
+              "sets.measurementType": measurementType,
+            },
+          },
+        },
+      },
+    }).select("stations.exercises -_id");
+
+    const exerciseData = workoutLogs.reduce(
+      (result, log) => {
+        log.stations.forEach((station) => {
+          station.exercises.forEach((exercise) => {
+            if (
+              exercise.exerciseName.toLowerCase() === exerciseName.toLowerCase()
+            ) {
+              exercise.sets.forEach((set) => {
+                if (set.measurementType === measurementType) {
+                  result[measurementType.toLowerCase()].push(
+                    set[measurementType.toLowerCase()]
+                  );
+                  result.lbs.push(set.lbs);
+                  result.measurementType = measurementType;
+                }
+              });
+            }
+          });
+        });
+        return result;
+      },
+      { reps: [], time: [], distance: [], lbs: [], measurementType: null }
+    );
+
+    // Remove empty arrays except for measurementType array and lbs
+    Object.keys(exerciseData).forEach((key) => {
+      if (
+        Array.isArray(exerciseData[key]) &&
+        exerciseData[key].length === 0 &&
+        key !== measurementType.toLowerCase() &&
+        key !== "lbs"
+      ) {
+        delete exerciseData[key];
+      }
+    });
+
+    res.status(200).json(exerciseData);
   } catch (error) {
     console.error("Error searching exercises:", error);
     res.status(500).json({ error: "Failed to search exercises" });
   }
 };
-
 const getDataForSpecificLevel = async (req, res) => {
   try {
     const { workoutId } = req.params; // Get workoutId from params
