@@ -37,69 +37,85 @@ const startWorkOut = async (req, res) => {
   try {
     const { workOutId } = req.params;
 
-    // Default level to "Beginner"
-    const level = "Level 1";
-
     // Find the workout by ID
     const fetchedWorkout = await findWorkOutById(workOutId, res);
-    if (!fetchedWorkout) {
-      return res.status(500).json({ msg: "Workout not found" });
+    if (!fetchedWorkout || !fetchedWorkout.workout) {
+      console.error(`Workout with ID ${workOutId} not found or incomplete`);
+      return res.status(404).json({ msg: "Workout not found" });
     }
 
+    // Automatically determine the lowest available level for each exercise
     const fetchedMeasurementType =
-      fetchedWorkout.workout.stations[0].exercises[0].sets[0].measurementType;
+      fetchedWorkout?.workout?.stations?.[0]?.exercises?.[0]?.sets?.[0]
+        ?.measurementType;
 
-    // Filter the workout's stations and their exercises by the specified level
+    // If no measurement type, return an error early
+    if (!fetchedMeasurementType) {
+      console.error(`Measurement type not found for workout ${workOutId}`);
+      return res
+        .status(400)
+        .json({ msg: "Invalid workout format or missing measurement type" });
+    }
+
+    const formatExercises = (exercises) => {
+      return exercises.map((exercise) => {
+        // Determine the lowest available level
+        const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
+          if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
+            return curr;
+          }
+          return prev;
+        }, null);
+
+        // Get all unique levels for this exercise
+        const levels = [...new Set(exercise.sets.map((set) => set.level))];
+
+        return {
+          exerciseName: exercise.exerciseName,
+          level: lowestLevelSet.level, // Lowest level set
+          levels, // Array of all levels for dropdown
+          levelsLength: levels.length, // Length of levels array
+          sets: exercise.sets
+            .filter((set) => set.level === lowestLevelSet.level)
+            .map((set) => {
+              const responseSet = {
+                measurementType: set.measurementType,
+                previous: set.previous || 0,
+                lbs: set.lbs || 0,
+                level: set.level,
+                _id: set._id,
+              };
+
+              if (set.measurementType === "Reps") {
+                responseSet.reps = set.value;
+              } else if (set.measurementType === "Time") {
+                responseSet.time = set.value;
+              } else if (set.measurementType === "Distance") {
+                responseSet.distance = set.value;
+              }
+
+              return responseSet;
+            }),
+        };
+      });
+    };
+
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
         stationNumber: station.stationNumber,
         completed: false,
-        exercises: station.exercises
-          .filter((exercise) =>
-            exercise.sets.some(
-              (set) => set.level.toLowerCase() === level.toLowerCase()
-            )
-          )
-          .map((exercise) => ({
-            exerciseName: exercise.exerciseName,
-            level: exercise.sets[0].level,
-
-            sets: exercise.sets
-              .filter((set) => set.level.toLowerCase() === level.toLowerCase())
-              .map((set) => {
-                const responseSet = {
-                  measurementType: set.measurementType,
-                  previous: set.previous || 0, // Use previous from the set
-                  lbs: set.lbs || 0, // Use lbs from the set
-                  level: set.level, // Include the level from the set
-                  _id: set._id,
-                };
-
-                // Include only the relevant value based on measurement type
-                if (set.measurementType === "Reps") {
-                  responseSet.reps = set.value;
-                } else if (set.measurementType === "Time") {
-                  responseSet.time = set.value;
-                } else if (set.measurementType === "Distance") {
-                  responseSet.distance = set.value;
-                }
-
-                return responseSet;
-              })
-              .filter((set) => set !== null), // Filter out any null sets
-          }))
-          .filter((exercise) => exercise.sets.length > 0), // Filter out exercises with no sets
+        exercises: formatExercises(station.exercises),
       }))
       .filter((station) => station.exercises.length > 0); // Filter out stations with no exercises
 
     if (filteredStations.length === 0) {
       return res.status(404).json({
-        msg: `No stations found for ${level} level`,
+        msg: `No stations found`,
         filteredStations,
       });
     }
 
-    // Check if the user has already finished the workout
+    // Check if the workout has been finished already
     const alreadyFinished = await WorkOutLog.findOne(
       {
         workOutId,
@@ -107,7 +123,7 @@ const startWorkOut = async (req, res) => {
       },
       { "stations.exercises._id": 0 }
     );
-    // Prepare response data structure
+
     const workoutData = {
       stations: filteredStations,
       weekNumber: fetchedWorkout.weekNumber,
@@ -117,16 +133,10 @@ const startWorkOut = async (req, res) => {
     };
 
     if (alreadyFinished) {
-      // Get a single measurement type from the fetched workout
-      const measurementType =
-        alreadyFinished.stations[0].exercises[0].sets[0].measurementType;
       const alreadyFinishedStations = alreadyFinished.stations.map(
         (station) => {
-          const plainStation = station.toObject(); // Convert Mongoose document to plain JS object
-          plainStation.exercises.map((exercise) => {
-            exercise.level = exercise.sets[0].level;
-            return exercise;
-          });
+          const plainStation = station.toObject();
+          plainStation.exercises = formatExercises(plainStation.exercises);
           return plainStation;
         }
       );
@@ -138,7 +148,7 @@ const startWorkOut = async (req, res) => {
           programId: alreadyFinished.programId,
           completed: alreadyFinished.completed,
           workOutId: alreadyFinished.workOutId,
-          measurementType,
+          measurementType: fetchedMeasurementType,
           programTitle: fetchedWorkout.programTitle,
         },
       });
@@ -147,7 +157,7 @@ const startWorkOut = async (req, res) => {
     res.status(200).json({
       workout: {
         ...workoutData,
-        completed: false, // Indicate if workout is completed
+        completed: false,
         measurementType: fetchedMeasurementType,
       },
     });
