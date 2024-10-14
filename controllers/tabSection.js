@@ -90,16 +90,16 @@ const userLoginToTab = async (req, res) => {
     tab.loggedInUser = user._id;
     await tab.save();
 
-    const workoutLog = await WorkoutLog.find({
-      userId: user._id,
-    });
-
     // Fetch today's workout details
     const {
       workout: todaysWorkout,
       programId,
       weekNumber,
     } = await fetchUserTodaysWorkout(res);
+
+    const workoutLog = await WorkoutLog.find({
+      userId: user._id,
+    });
 
     let existingStation = null;
 
@@ -119,25 +119,65 @@ const userLoginToTab = async (req, res) => {
       }
     }
 
-    if (existingStation) {
-      const completedStations = existingStation.map((station) => {
-        const plainStation = station.toObject(); // Convert Mongoose document to plain JS object
-        plainStation.exercises.map((exercise) => {
-          exercise.level = exercise.sets[0].level;
-          return exercise;
-        });
-        return plainStation;
+    // Function to format exercises
+    const formatExercises = (exercises) => {
+      return exercises.map((exercise) => {
+        // Determine the lowest available level
+        const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
+          if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
+            return curr;
+          }
+          return prev;
+        }, null);
+
+        // Get all unique levels for this exercise
+        const levels = [...new Set(exercise.sets.map((set) => set.level))];
+
+        return {
+          exerciseName: exercise.exerciseName,
+          level: lowestLevelSet.level, // Lowest level set
+          levels, // Array of all levels for dropdown
+          levelsLength: levels.length, // Length of levels array
+          sets: exercise.sets
+            .filter((set) => set.level === lowestLevelSet.level)
+            .map((set) => {
+              const responseSet = {
+                measurementType: set.measurementType,
+                previous: set.previous || 0,
+                lbs: set.lbs || 0,
+                level: set.level,
+                _id: set._id,
+              };
+
+              if (set.measurementType === "Reps") {
+                responseSet.reps = set.value;
+              } else if (set.measurementType === "Time") {
+                responseSet.time = set.value;
+              } else if (set.measurementType === "Distance") {
+                responseSet.distance = set.value;
+              }
+
+              return responseSet;
+            }),
+        };
       });
+    };
+
+    if (existingStation) {
+      // If existingStation is a single station object, convert it to a plain JS object
+      const plainStation = existingStation.toObject(); // Convert to plain JS object
+      plainStation.exercises = formatExercises(plainStation.exercises); // Format exercises
+
       return res.status(200).json({
         message: "Station data already saved",
         workout: {
-          station: completedStations,
+          station: [plainStation], // Wrap the single station in an array
           userId: user._id,
-          weekNumber: existingStation.weekNumber, // Use the existing station's weekNumber
-          programId: existingStation.programId, // Use the existing station's programId
-          workOutId: existingStation.workOutId, // Use the existing station's workOutId
+          weekNumber: plainStation.weekNumber,
+          programId: plainStation.programId,
+          workOutId: plainStation.workOutId,
           completed: true,
-          measurementType: existingStation.exercises[0].sets[0].measurementType,
+          measurementType: plainStation.exercises[0].sets[0].measurementType,
         },
       });
     }
@@ -161,33 +201,8 @@ const userLoginToTab = async (req, res) => {
       station: {
         stationNumber: todaysWorkout.stations[stationIndex].stationNumber,
         completed: false,
-        exercises: todaysWorkout.stations[stationIndex].exercises.map(
-          (exercise) => ({
-            exerciseName: exercise.exerciseName,
-            level: exercise.sets[0].level,
-            sets: exercise.sets
-              .filter((set) => set.level === "Level 1") // Only include Beginner sets
-              .map((set) => {
-                let setData = {
-                  measurementType: set.measurementType,
-                  previous: set.previous || 0, // default
-                  lbs: set.lbs || 0,
-                  level: set.level, // default
-                  _id: set._id,
-                };
-
-                // Add specific fields based on measurement type
-                if (set.measurementType === "Time") {
-                  setData.time = set.value;
-                } else if (set.measurementType === "Reps") {
-                  setData.reps = set.value;
-                } else if (set.measurementType === "Distance") {
-                  setData.distance = set.value;
-                }
-
-                return setData;
-              }),
-          })
+        exercises: formatExercises(
+          todaysWorkout.stations[stationIndex].exercises
         ),
       },
       userId: user._id,
@@ -214,7 +229,7 @@ const saveWorkout = async (req, res) => {
   try {
     const { workOutId, userId, weekNumber, programId, station } = req.body;
     const tabId = req.tabId;
-    const previousWorkouts = await WorkOutLog.find({ userId });
+    const previousWorkouts = await WorkoutLog.find({ userId });
 
     const tab = await Tab.findOne({ tabId });
     if (!tab) {
