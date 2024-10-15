@@ -121,7 +121,7 @@ const startWorkOut = async (req, res) => {
         workOutId,
         userId: req.user._id,
       },
-      { "stations.exercises._id": 0 }
+      { "stations.exercises._id": 0, "stations._id": 0 }
     );
 
     const workoutData = {
