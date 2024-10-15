@@ -67,7 +67,13 @@ const startWorkOut = async (req, res) => {
           return prev;
         }, null);
 
-        const levels = [...new Set(exercise.sets.map((set) => set.level))];
+        // Generate unique levels without duplicates
+        const levels = [];
+        exercise.sets.forEach((set) => {
+          if (!levels.includes(set.level)) {
+            levels.push(set.level);
+          }
+        });
 
         return {
           exerciseName: exercise.exerciseName,
@@ -135,10 +141,17 @@ const startWorkOut = async (req, res) => {
       // Use a modified function to format exercises for already finished workouts
       const formatFinishedExercises = (exercises) => {
         return exercises.map((exercise) => {
+          const levels = [];
+          exercise.sets.forEach((set) => {
+            if (!levels.includes(set.level)) {
+              levels.push(set.level);
+            }
+          });
+
           return {
             exerciseName: exercise.exerciseName,
             level: exercise.sets[0].level,
-            levels: [...new Set(exercise.sets.map((set) => set.level))],
+            levels,
             levelsLength: exercise.sets.length, // Include all sets
             sets: exercise.sets.map((set) => {
               const responseSet = {
@@ -148,13 +161,15 @@ const startWorkOut = async (req, res) => {
                 level: set.level,
                 _id: set._id,
               };
+
               // Ensure reps, time, and distance are assigned correctly
+              // Check if set.value is defined before assigning
               if (set.measurementType === "Reps") {
-                responseSet.reps = set.value || 0; // Use value for reps
+                responseSet.reps = set.reps; // Use value for reps, default to 0 if undefined
               } else if (set.measurementType === "Time") {
-                responseSet.time = set.value || 0; // Use value for time
+                responseSet.time = set.time; // Use value for time, default to 0 if undefined
               } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.value || 0; // Use value for distance
+                responseSet.distance = set.distance; // Use value for distance, default to 0 if undefined
               }
 
               return responseSet;
@@ -227,8 +242,6 @@ const finishWorkOut = async (req, res) => {
     if (!fetchedWorkOut) {
       return res.status(404).json({ msg: "Workout not found" });
     }
-
-    console.log(fetchedWorkOut);
 
     // Check if stations length are the same
     if (stations.length !== fetchedWorkOut.workout.stations.length) {
