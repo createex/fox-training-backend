@@ -834,11 +834,15 @@ const getDataForSpecificLevel = async (req, res) => {
         error: `No sets found for exercise ${exerciseName} at level: ${level}.`,
       });
     }
-
+    const levels = exercise.sets.map((set) => {
+      return set.level;
+    });
     // Return filtered exercise data
     return res.status(200).json({
       exercise: {
         exerciseName: exercise.exerciseName,
+        levels,
+        levelsLength: levels.length,
         level: filteredSets[0].level,
         sets: filteredSets,
       },

@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 //for test -----> using development db
-if (process.env.NODE_ENV == "development") {
+if (process.env.NODE_EddNV == "development") {
   console.log("connecting to development db...");
   module.exports = {
     mongoURI: "mongodb://localhost:27017/test",
