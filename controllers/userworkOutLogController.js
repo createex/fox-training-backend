@@ -44,7 +44,7 @@ const startWorkOut = async (req, res) => {
       return res.status(404).json({ msg: "Workout not found" });
     }
 
-    // Automatically determine the lowest available level for each exercise
+    // Automatically determine the measurement type for the workout
     const fetchedMeasurementType =
       fetchedWorkout?.workout?.stations?.[0]?.exercises?.[0]?.sets?.[0]
         ?.measurementType;
@@ -57,9 +57,9 @@ const startWorkOut = async (req, res) => {
         .json({ msg: "Invalid workout format or missing measurement type" });
     }
 
+    // Format exercises for ongoing workouts
     const formatExercises = (exercises) => {
       return exercises.map((exercise) => {
-        // Determine the lowest available level
         const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
             return curr;
@@ -67,14 +67,13 @@ const startWorkOut = async (req, res) => {
           return prev;
         }, null);
 
-        // Get all unique levels for this exercise
         const levels = [...new Set(exercise.sets.map((set) => set.level))];
 
         return {
           exerciseName: exercise.exerciseName,
-          level: lowestLevelSet.level, // Lowest level set
-          levels, // Array of all levels for dropdown
-          levelsLength: levels.length, // Length of levels array
+          level: lowestLevelSet.level,
+          levels,
+          levelsLength: levels.length,
           sets: exercise.sets
             .filter((set) => set.level === lowestLevelSet.level)
             .map((set) => {
@@ -85,13 +84,13 @@ const startWorkOut = async (req, res) => {
                 level: set.level,
                 _id: set._id,
               };
-
+              // Ensure reps, time, and distance are assigned correctly
               if (set.measurementType === "Reps") {
-                responseSet.reps = set.value;
+                responseSet.reps = set.value; // Use value for reps
               } else if (set.measurementType === "Time") {
-                responseSet.time = set.value;
+                responseSet.time = set.value; // Use value for time
               } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.value;
+                responseSet.distance = set.value; // Use value for distance
               }
 
               return responseSet;
@@ -133,10 +132,43 @@ const startWorkOut = async (req, res) => {
     };
 
     if (alreadyFinished) {
+      // Use a modified function to format exercises for already finished workouts
+      const formatFinishedExercises = (exercises) => {
+        return exercises.map((exercise) => {
+          return {
+            exerciseName: exercise.exerciseName,
+            level: exercise.sets[0].level,
+            levels: [...new Set(exercise.sets.map((set) => set.level))],
+            levelsLength: exercise.sets.length, // Include all sets
+            sets: exercise.sets.map((set) => {
+              const responseSet = {
+                measurementType: set.measurementType,
+                previous: set.previous || 0,
+                lbs: set.lbs || 0,
+                level: set.level,
+                _id: set._id,
+              };
+              // Ensure reps, time, and distance are assigned correctly
+              if (set.measurementType === "Reps") {
+                responseSet.reps = set.value || 0; // Use value for reps
+              } else if (set.measurementType === "Time") {
+                responseSet.time = set.value || 0; // Use value for time
+              } else if (set.measurementType === "Distance") {
+                responseSet.distance = set.value || 0; // Use value for distance
+              }
+
+              return responseSet;
+            }),
+          };
+        });
+      };
+
       const alreadyFinishedStations = alreadyFinished.stations.map(
         (station) => {
           const plainStation = station.toObject();
-          plainStation.exercises = formatExercises(plainStation.exercises);
+          plainStation.exercises = formatFinishedExercises(
+            plainStation.exercises
+          );
           return plainStation;
         }
       );
