@@ -97,9 +97,12 @@ const userLoginToTab = async (req, res) => {
       weekNumber,
     } = await fetchUserTodaysWorkout(res);
 
-    const workoutLog = await WorkoutLog.find({
-      userId: user._id,
-    });
+    const workoutLog = await WorkoutLog.find(
+      {
+        userId: user._id,
+      },
+      { "stations._id": 0 }
+    );
 
     let existingStation = null;
 
@@ -131,8 +134,12 @@ const userLoginToTab = async (req, res) => {
         }, null);
 
         // Get all unique levels for this exercise
-        const levels = [...new Set(exercise.sets.map((set) => set.level))];
-
+        const levels = [];
+        exercise.sets.forEach((set) => {
+          if (!levels.includes(set.level)) {
+            levels.push(set.level);
+          }
+        });
         return {
           exerciseName: exercise.exerciseName,
           level: lowestLevelSet.level, // Lowest level set
@@ -150,11 +157,11 @@ const userLoginToTab = async (req, res) => {
               };
 
               if (set.measurementType === "Reps") {
-                responseSet.reps = set.value;
+                responseSet.reps = set.value || set.reps;
               } else if (set.measurementType === "Time") {
-                responseSet.time = set.value;
+                responseSet.time = set.value || set.time;
               } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.value;
+                responseSet.distance = set.value || set.distance;
               }
 
               return responseSet;
