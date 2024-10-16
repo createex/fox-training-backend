@@ -78,11 +78,11 @@ const userLoginToTab = async (req, res) => {
     const { tabId } = req;
     const { username } = req.body;
 
-    // Find the tab and check if token matches
+    // Find the tab and check if it exists
     const tab = await Tab.findOne({ tabId });
     if (!tab) return res.status(404).json({ message: "Tab not found" });
 
-    // Find the user
+    // Find the user by username
     const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -103,16 +103,18 @@ const userLoginToTab = async (req, res) => {
       },
       { "stations._id": 0 }
     );
+    let completedWorkout = null;
 
     let existingStation = null;
 
+    // Loop through the workout log to find the existing station if it exists
     for (const log of workoutLog) {
-      // Check if the log matches the current workout, program, and user
       if (
         log.workOutId.toString() === todaysWorkout._id.toString() &&
         log.programId.toString() === programId.toString() &&
         log.userId.toString() === user._id.toString()
       ) {
+        completedWorkout = log;
         existingStation = log.stations.find(
           (station) =>
             station.stationNumber === tab.stationNumber &&
@@ -122,10 +124,9 @@ const userLoginToTab = async (req, res) => {
       }
     }
 
-    // Function to format exercises
-    const formatExercises = (exercises) => {
+    // Format the exercises for new workouts
+    const formatNewExercises = (exercises) => {
       return exercises.map((exercise) => {
-        // Determine the lowest available level
         const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
             return curr;
@@ -133,7 +134,6 @@ const userLoginToTab = async (req, res) => {
           return prev;
         }, null);
 
-        // Get all unique levels for this exercise
         const levels = [];
         exercise.sets.forEach((set) => {
           if (!levels.includes(set.level)) {
@@ -142,9 +142,9 @@ const userLoginToTab = async (req, res) => {
         });
         return {
           exerciseName: exercise.exerciseName,
-          level: lowestLevelSet.level, // Lowest level set
-          levels, // Array of all levels for dropdown
-          levelsLength: levels.length, // Length of levels array
+          level: lowestLevelSet.level,
+          levels,
+          levelsLength: levels.length,
           sets: exercise.sets
             .filter((set) => set.level === lowestLevelSet.level)
             .map((set) => {
@@ -170,51 +170,81 @@ const userLoginToTab = async (req, res) => {
       });
     };
 
+    // Format the exercises for existing workouts
+    const formatExistingExercises = (exercises) => {
+      return exercises.map((exercise) => {
+        return {
+          exerciseName: exercise.exerciseName,
+          level: exercise.sets[0].level,
+          levels: [...new Set(exercise.sets.map((set) => set.level))],
+          levelsLength: exercise.sets.length,
+          sets: exercise.sets.map((set) => {
+            const responseSet = {
+              measurementType: set.measurementType,
+              previous: set.previous || 0,
+              lbs: set.lbs || 0,
+              level: set.level,
+              _id: set._id,
+            };
+
+            if (set.measurementType === "Reps") {
+              responseSet.reps = set.value || set.reps;
+            } else if (set.measurementType === "Time") {
+              responseSet.time = set.value || set.time;
+            } else if (set.measurementType === "Distance") {
+              responseSet.distance = set.value || set.distance;
+            }
+
+            return responseSet;
+          }),
+        };
+      });
+    };
+
+    // If the workout station is already completed
     if (existingStation) {
-      // If existingStation is a single station object, convert it to a plain JS object
-      const plainStation = existingStation.toObject(); // Convert to plain JS object
-      plainStation.exercises = formatExercises(plainStation.exercises); // Format exercises
+      const plainStation = existingStation.toObject();
+      plainStation.exercises = formatExistingExercises(plainStation.exercises);
 
       return res.status(200).json({
         message: "Station data already saved",
         workout: {
-          station: [plainStation], // Wrap the single station in an array
-          userId: user._id,
-          weekNumber: plainStation.weekNumber,
-          programId: plainStation.programId,
-          workOutId: plainStation.workOutId,
+          station: [plainStation],
+          userId: completedWorkout.userId,
+          weekNumber: completedWorkout.weekNumber,
+          programId: completedWorkout.programId,
+          workOutId: completedWorkout.workOutId,
           completed: true,
           measurementType: plainStation.exercises[0].sets[0].measurementType,
         },
       });
     }
 
-    // Access the stations array
+    // Handle new workout station if no existing station found
     const stations = todaysWorkout.stations;
     const targetStationNumber = tab.stationNumber;
     const stationIndex = stations.findIndex(
       (station) => station.stationNumber === targetStationNumber
     );
 
-    // Ensure we have a valid station index
     if (stationIndex === -1) {
       return res
         .status(404)
         .json({ message: "Station not found in today's workout" });
     }
 
-    // Build the workout object including all exercises for the station
-    let workout = {
+    // Build the workout object for new station
+    const workout = {
       station: {
         stationNumber: todaysWorkout.stations[stationIndex].stationNumber,
         completed: false,
-        exercises: formatExercises(
+        exercises: formatNewExercises(
           todaysWorkout.stations[stationIndex].exercises
         ),
       },
       userId: user._id,
-      weekNumber: weekNumber,
-      programId: programId,
+      weekNumber,
+      programId,
       workOutId: todaysWorkout._id,
       measurementType:
         todaysWorkout.stations[stationIndex].exercises[0].sets[0]
