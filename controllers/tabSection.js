@@ -173,11 +173,17 @@ const userLoginToTab = async (req, res) => {
     // Format the exercises for existing workouts
     const formatExistingExercises = (exercises) => {
       return exercises.map((exercise) => {
+        const levels = [];
+        exercise.sets.forEach((set) => {
+          if (!levels.includes(set.level)) {
+            levels.push(set.level);
+          }
+        });
         return {
           exerciseName: exercise.exerciseName,
           level: exercise.sets[0].level,
-          levels: [...new Set(exercise.sets.map((set) => set.level))],
-          levelsLength: exercise.sets.length,
+          levels: levels,
+          levelsLength: levels.length,
           sets: exercise.sets.map((set) => {
             const responseSet = {
               measurementType: set.measurementType,
