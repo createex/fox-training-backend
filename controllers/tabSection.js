@@ -216,7 +216,7 @@ const userLoginToTab = async (req, res) => {
       return res.status(200).json({
         message: "Station data already saved",
         workout: {
-          station: [plainStation],
+          station: plainStation,
           userId: completedWorkout.userId,
           weekNumber: completedWorkout.weekNumber,
           programId: completedWorkout.programId,
