@@ -44,6 +44,10 @@ cron.schedule("0 0 * * 0", async () => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.json("Welcome to fox-traning-app!");
+});
+
 // Connect to MongoDB
 mongoose
   .connect(config.mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })

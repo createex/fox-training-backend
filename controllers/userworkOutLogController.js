@@ -633,35 +633,36 @@ const getExercisesNames = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch exercises" });
   }
 };
+
 const searchExercise = async (req, res) => {
   try {
-    const { exerciseName, timeframe = "1_month", range } = req.query;
+    const { exerciseName, timeframe } = req.query;
     const userId = req.user._id;
 
     if (!exerciseName) {
       return res.status(400).json({ error: "Please provide an exercise name" });
     }
 
-    const timeframeMap = {
-      "1_month": {
-        start: moment().startOf("month"),
-        end: moment().endOf("month"),
-      },
-      "3_months": { start: moment().subtract(3, "months"), end: moment() },
-      "6_months": { start: moment().subtract(6, "months"), end: moment() },
-      "1_year": { start: moment().subtract(1, "year"), end: moment() },
-    };
+    let daysLength = 0;
 
-    if (!timeframeMap[timeframe]) {
-      return res.status(400).json({ error: `Invalid timeframe: ${timeframe}` });
+    if (timeframe == "1_months") {
+      daysLength = 30;
+    } else if (timeframe == "3_months") {
+      daysLength = 90;
+    } else if (timeframe == "6_months") {
+      daysLength = 180;
+    } else if (timeframe == "12_months") {
+      daysLength = 365;
     }
 
-    const { start, end } = timeframeMap[timeframe];
+    if (daysLength == 0) {
+      return res
+        .status(400)
+        .json({ error: "Please provide an valid time frame" });
+    }
 
-    // Determine measurement type
-    const measurementTypeDoc = await WorkOutLog.findOne({
+    const workoutLogsArray = await WorkOutLog.find({
       userId,
-      completedAt: { $gte: start.toDate(), $lte: end.toDate() },
       stations: {
         $elemMatch: {
           exercises: {
@@ -672,120 +673,86 @@ const searchExercise = async (req, res) => {
           },
         },
       },
-    }).select("stations.exercises");
+    }).select("completedAt stations");
 
-    if (!measurementTypeDoc) {
-      return res.status(404).json({
-        error: `No exercises found with the given name for the selected timeframe`,
-      });
-    }
+    const resultList = workoutLogsArray.map((workoutLog) => {
+      const exercises = [];
 
-    const measurementType =
-      measurementTypeDoc.stations[0].exercises[0].sets[0].measurementType;
-    const measurementTypeLower = measurementType.toLowerCase();
-
-    let rangeQuery = {};
-    if (range) {
-      const rangeParts = range.split("-");
-      if (rangeParts.length !== 2) {
-        return res
-          .status(400)
-          .json({ error: `Invalid range format. Expected: min-max` });
-      }
-      const minRange = parseInt(rangeParts[0]);
-      const maxRange = parseInt(rangeParts[1]);
-      if (
-        isNaN(minRange) ||
-        isNaN(maxRange) ||
-        minRange < 0 ||
-        maxRange < 0 ||
-        minRange > maxRange
-      ) {
-        return res.status(400).json({ error: `Invalid range values` });
-      }
-      rangeQuery = {
-        $elemMatch: {
-          [measurementTypeLower]: { $gte: minRange, $lte: maxRange },
-        },
-      };
-    } else {
-      rangeQuery = {
-        $elemMatch: {
-          [measurementTypeLower]: { $exists: true },
-        },
-      };
-    }
-
-    const workoutLogs = await WorkOutLog.find({
-      userId,
-      completedAt: { $gte: start.toDate(), $lte: end.toDate() },
-      stations: {
-        $elemMatch: {
-          exercises: {
-            $elemMatch: {
-              exerciseName: { $regex: exerciseName, $options: "i" },
-              sets: rangeQuery,
-              "sets.measurementType": measurementType,
-            },
-          },
-        },
-      },
-    }).select("stations.exercises completedAt -_id");
-
-    const exerciseData = workoutLogs.reduce(
-      (result, log) => {
-        const date = moment(log.completedAt).format("YYYY-MM-DD");
-
-        log.stations.forEach((station) => {
-          station.exercises.forEach((exercise) => {
-            if (
-              exercise.exerciseName.toLowerCase() === exerciseName.toLowerCase()
-            ) {
-              exercise.sets.forEach((set) => {
-                if (set.measurementType === measurementType) {
-                  if (!result.dates.includes(date)) {
-                    result.dates.push(date);
-                    result[measurementTypeLower][date] =
-                      set[measurementTypeLower];
-                    result.lbs[date] = set.lbs;
-                  } else {
-                    if (
-                      set[measurementTypeLower] >
-                      result[measurementTypeLower][date]
-                    ) {
-                      result[measurementTypeLower][date] =
-                        set[measurementTypeLower];
-                      result.lbs[date] = set.lbs;
-                    }
-                  }
-                }
-              });
-            }
-          });
+      workoutLog.stations.forEach((station) => {
+        station.exercises.forEach((exercise) => {
+          if (exercise.exerciseName.match(new RegExp(exerciseName, "i"))) {
+            exercise.sets.forEach((set) => {
+              if (set.measurementType !== null) {
+                exercises.push({
+                  exerciseName: exercise.exerciseName,
+                  reps: set.reps,
+                  lbs: set.lbs,
+                });
+              }
+            });
+          }
         });
-        return result;
-      },
-      {
-        [measurementTypeLower]: {},
-        lbs: {},
-        measurementType: measurementType,
-        dates: [],
+      });
+
+      return {
+        completedAt: workoutLog.completedAt,
+        exercise: exercises[0],
+      };
+    });
+    const now = new Date();
+    const lastDays = [];
+
+    for (let i = 0; i < daysLength; i++) {
+      const date = new Date();
+      date.setDate(now.getDate() - i);
+      lastDays.push(date.toISOString().split("T")[0]);
+    }
+
+    const dailyResults = lastDays.map((day) => {
+      const workoutForDay = resultList.find((workout) => {
+        const workoutDate = new Date(workout.completedAt)
+          .toISOString()
+          .split("T")[0];
+        return workoutDate === day;
+      });
+
+      if (!workoutForDay) {
+        return {
+          completedAt: `${day}T00:00:00.000Z`,
+          exercise: {
+            exerciseName: exerciseName,
+            reps: 0,
+            lbs: 0,
+          },
+        };
       }
+
+      return workoutForDay;
+    });
+
+    dailyResults.sort(
+      (a, b) => new Date(a.completedAt) - new Date(b.completedAt)
     );
 
-    const transformedData = {
-      measurementType: exerciseData.measurementType,
-      [exerciseData.measurementType.toLowerCase()]: Object.values(
-        exerciseData[exerciseData.measurementType.toLowerCase()]
-      ),
-      lbs: Object.values(exerciseData.lbs),
-      dates: exerciseData.dates,
-    };
+    let repsFinal = [];
+    let lbsFinal = [];
+    let dateFinal = [];
 
-    res.status(200).json(transformedData);
+    for (const element of dailyResults) {
+      dateFinal.push(element.completedAt);
+      lbsFinal.push(element.exercise.lbs);
+      repsFinal.push(element.exercise.reps);
+    }
+
+    return res.status(200).json({
+      data: {
+        reps: repsFinal,
+        lbs: lbsFinal,
+        date: dateFinal,
+      },
+    });
   } catch (error) {
-    console.error("Error searching exercises:", error);
-    res.status(500).json({ error: "Failed to search exercises" });
+    res.status(500).json({ error: error.message });
   }
 };
 
