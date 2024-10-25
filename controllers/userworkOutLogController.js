@@ -757,7 +757,7 @@ const getExercisesNames = async (req, res) => {
 
 const searchExercise = async (req, res) => {
   try {
-    const { exerciseName, timeframe } = req.query;
+    const { exerciseName, timeframe, range } = req.query;
     const userId = req.user._id;
 
     if (!exerciseName) {
@@ -777,7 +777,23 @@ const searchExercise = async (req, res) => {
     }
 
     if (daysLength === 0) {
-      return res.status(400).json({ error: "Please provide a valid time frame" });
+      return res
+        .status(400)
+        .json({ error: "Please provide a valid time frame" });
+    }
+
+    let ranges = [];
+
+    if (range == "4-6") {
+      ranges = [4, 5, 6];
+    } else if (range == "6-8") {
+      ranges = [6, 7, 8];
+    } else if (range == "8-12") {
+      ranges = [8, 9, 10, 11, 12];
+    } else if (range == "12-15") {
+      ranges = [12, 13, 14, 15];
+    } else if (range == "15-all") {
+      ranges = [15, 16, 17, 18, 19, 20];
     }
 
     const workoutLogsArray = await WorkOutLog.find({
@@ -802,10 +818,25 @@ const searchExercise = async (req, res) => {
           if (exercise.exerciseName.match(new RegExp(exerciseName, "i"))) {
             exercise.sets.forEach((set) => {
               if (set.measurementType !== null) {
+                let repsVal = set.reps ?? 0;
+                let lbsVal = set.lbs ?? 0;
+
+                if (ranges.length !== 0) {
+                  if (range === "15-all") {
+                    if (repsVal < 15) {
+                      repsVal = 0;
+                    }
+                  } else {
+                    if (!ranges.includes(repsVal)) {
+                      repsVal = 0;
+                    }
+                  }
+                }
+
                 exercises.push({
                   exerciseName: exercise.exerciseName,
-                  reps: set.reps ?? 0,  // Convert null to 0
-                  lbs: set.lbs ?? 0,    // Convert null to 0
+                  reps: repsVal,
+                  lbs: lbsVal,
                 });
               }
             });
@@ -815,7 +846,7 @@ const searchExercise = async (req, res) => {
 
       return {
         completedAt: workoutLog.completedAt,
-        exercise: exercises[0] || { exerciseName, reps: 0, lbs: 0 },  // Default to 0 if no exercise found
+        exercise: exercises[0] || { exerciseName, reps: 0, lbs: 0 },
       };
     });
 
@@ -834,10 +865,12 @@ const searchExercise = async (req, res) => {
         return workoutDate === day;
       });
 
-      return workoutForDay || {
-        completedAt: day,
-        exercise: { exerciseName, reps: 0, lbs: 0 },  // Default values
-      };
+      return (
+        workoutForDay || {
+          completedAt: day,
+          exercise: { exerciseName, reps: 0, lbs: 0 },
+        }
+      );
     });
 
     dailyResults.sort(
@@ -846,8 +879,8 @@ const searchExercise = async (req, res) => {
 
     const repsFinal = dailyResults.map((item) => item.exercise.reps ?? 0);
     const lbsFinal = dailyResults.map((item) => item.exercise.lbs ?? 0);
-    const dateFinal = dailyResults.map((item) => 
-      new Date(item.completedAt).toISOString().split("T")[0]
+    const dateFinal = dailyResults.map(
+      (item) => new Date(item.completedAt).toISOString().split("T")[0]
     );
 
     return res.status(200).json({
@@ -861,7 +894,6 @@ const searchExercise = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 const getDataForSpecificLevel = async (req, res) => {
   try {
