@@ -784,15 +784,17 @@ const searchExercise = async (req, res) => {
 
     let ranges = [];
 
-    if (range == "4-6") {
+    if (range === "4-6") {
       ranges = [4, 5, 6];
-    } else if (range == "6-8") {
+    } else if (range === "6-8") {
       ranges = [6, 7, 8];
-    } else if (range == "8-12") {
-      ranges = [8, 9, 10, 11, 12];
-    } else if (range == "12-15") {
+    } else if (range === "8-10") {
+      ranges = [8, 9, 10];
+    } else if (range === "10-12") {
+      ranges = [10, 11, 12];
+    } else if (range === "12-15") {
       ranges = [12, 13, 14, 15];
-    } else if (range == "15-all") {
+    } else if (range === "15-all") {
       ranges = [15, 16, 17, 18, 19, 20];
     }
 
@@ -884,11 +886,10 @@ const searchExercise = async (req, res) => {
     );
 
     return res.status(200).json({
-      data: {
-        reps: repsFinal,
-        lbs: lbsFinal,
-        date: dateFinal,
-      },
+      measurementType: "Reps", // Setting the measurementType as a separate field
+      reps: repsFinal,
+      lbs: lbsFinal,
+      dates: dateFinal,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
