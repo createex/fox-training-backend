@@ -835,6 +835,18 @@ const searchExercise = async (req, res) => {
                   }
                 }
 
+                if (ranges.length !== 0) {
+                  if (range === "15-all") {
+                    if (lbsVal < 15) {
+                      lbsVal = 0;
+                    }
+                  } else {
+                    if (!ranges.includes(lbsVal)) {
+                      lbsVal = 0;
+                    }
+                  }
+                }
+
                 exercises.push({
                   exerciseName: exercise.exerciseName,
                   reps: repsVal,
