@@ -8,6 +8,10 @@ const setSchema = new mongoose.Schema({
     required: true,
   },
   value: { type: Number, required: true }, // reps, time, or distance value
+  exerciseName: {
+    type: String,
+    default: ""
+  },
   measurementType: {
     type: String,
     enum: ["Reps", "Time", "Distance"],
