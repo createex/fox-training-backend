@@ -81,8 +81,8 @@ const startWorkOut = async (req, res) => {
 
         return {
           exerciseName: exercise.exerciseName,
-          level: `${lowestLevelSet.level} ${exercise.sets[0]?.exerciseName || ''}`, // Use the first set's exerciseName
-          levels: levels.map((lvl) => `${lvl} ${exercise.sets[0]?.exerciseName || ''}`), // Add exerciseName to each level
+          level: `${lowestLevelSet.level} (${exercise.sets[0]?.exerciseName || ''})`, // Use the first set's exerciseName
+          levels: levels.map((lvl) => `${lvl} (${exercise.sets[0]?.exerciseName || ''})`), // Add exerciseName to each level
           levelsLength: levels.length,
           sets: exercise.sets
             .filter((set) => set.level === lowestLevelSet.level)
