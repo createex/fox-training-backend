@@ -36,7 +36,6 @@ const getTodaysWorkOut = async (req, res) => {
 const startWorkOut = async (req, res) => {
   try {
     const { workOutId } = req.params;
-  
 
     // Find the workout by ID
     const fetchedWorkout = await findWorkOutById(workOutId, res);
@@ -44,8 +43,6 @@ const startWorkOut = async (req, res) => {
       console.error(`Workout with ID ${workOutId} not found or incomplete`);
       return res.status(404).json({ msg: "Workout not found" });
     }
-
-   
 
     // Automatically determine the measurement type for the workout
     const fetchedMeasurementType =
@@ -63,7 +60,6 @@ const startWorkOut = async (req, res) => {
     // Format exercises for ongoing workouts
     const formatExercises = (exercises) => {
       return exercises.map((exercise) => {
-      
         const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
             return curr;
@@ -81,8 +77,8 @@ const startWorkOut = async (req, res) => {
 
         return {
           exerciseName: exercise.exerciseName,
-          level: `${lowestLevelSet.level} (${exercise.sets[0]?.exerciseName || ''})`, // Use the first set's exerciseName
-          levels: levels.map((lvl) => `${lvl} (${exercise.sets[0]?.exerciseName || ''})`), // Add exerciseName to each level
+          level: lowestLevelSet.level,
+          levels: levels,
           levelsLength: levels.length,
           sets: exercise.sets
             .filter((set) => set.level === lowestLevelSet.level)
@@ -91,10 +87,10 @@ const startWorkOut = async (req, res) => {
                 measurementType: set.measurementType,
                 previous: set.previous || 0,
                 lbs: set.lbs || 0,
-                level: set.level,
+                level: set.level + ` (${exercise.exerciseName})`,
                 _id: set._id,
               };
-              // Ensure reps, time, and distance are assigned correctly
+
               if (set.measurementType === "Reps") {
                 responseSet.reps = set.value; // Use value for reps
               } else if (set.measurementType === "Time") {
