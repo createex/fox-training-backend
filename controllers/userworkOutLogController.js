@@ -94,8 +94,6 @@ const startWorkOut = async (req, res) => {
                 previous: set.previous || 0,
                 lbs: set.lbs || 0,
                 level: set.level + ` (${set.exerciseName})`,
-                levels,
-                _id: set._id,
               };
 
               if (set.measurementType === "Reps") {
