@@ -64,6 +64,7 @@ const startWorkOut = async (req, res) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
             return curr;
           }
+
           return prev;
         }, null);
 
@@ -71,23 +72,25 @@ const startWorkOut = async (req, res) => {
         const levels = [];
         exercise.sets.forEach((set) => {
           if (!levels.includes(set.level)) {
-            levels.push(set.level);
+            levels.push(`${set.level} (${set.exerciseName})`);
           }
         });
 
         return {
           exerciseName: exercise.exerciseName,
-          level: lowestLevelSet.level,
+          level: `${lowestLevelSet.level} (${exercise.exerciseName})`,
           levels: levels,
           levelsLength: levels.length,
           sets: exercise.sets
             .filter((set) => set.level === lowestLevelSet.level)
             .map((set) => {
               const responseSet = {
+                exerciseName: set.exerciseName,
                 measurementType: set.measurementType,
                 previous: set.previous || 0,
                 lbs: set.lbs || 0,
-                level: set.level + ` (${exercise.exerciseName})`,
+                level: set.level + ` (${set.exerciseName})`,
+                levels,
                 _id: set._id,
               };
 
@@ -150,8 +153,12 @@ const startWorkOut = async (req, res) => {
 
           return {
             exerciseName: exercise.exerciseName,
-            level: exercise.sets[0].level,
-            levels,
+            level: `${lowestLevelSet.level} (${
+              exercise.sets[0]?.exerciseName || ""
+            })`, // Use the first set's exerciseName
+            levels: levels.map(
+              (lvl) => `${lvl} (${exercise.sets[0]?.exerciseName || ""})`
+            ), // Add
             levelsLength: exercise.sets.length, // Include all sets
             sets: exercise.sets.map((set) => {
               const responseSet = {
