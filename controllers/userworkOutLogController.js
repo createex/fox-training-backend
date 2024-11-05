@@ -70,15 +70,19 @@ const startWorkOut = async (req, res) => {
 
         // Generate unique levels without duplicates
         const levels = [];
+        const levelWithEx = [];
         exercise.sets.forEach((set) => {
           if (!levels.includes(set.level)) {
             levels.push(`${set.level} (${set.exerciseName})`);
+            if (set.level === lowestLevelSet.level) {
+              levelWithEx.push(`${set.level} (${set.exerciseName})`);
+            }
           }
         });
 
         return {
           exerciseName: exercise.exerciseName,
-          level: `${lowestLevelSet.level} (${exercise.exerciseName})`,
+          level: levelWithEx[0],
           levels: levels,
           levelsLength: levels.length,
           sets: exercise.sets
