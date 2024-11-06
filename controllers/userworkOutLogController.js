@@ -982,7 +982,8 @@ const getDataForSpecificLevel = async (req, res) => {
       .map((set) => {
         // Add common fields
         const setData = {
-          level: set.level,
+          exerciseName: set.exerciseName,
+          level: set.level + ` (${set.exerciseName})`,
           measurementType: set.measurementType,
           previous: set.previous || 0, // Add previous field with default value 0
           lbs: set.lbs || 0, // Add lbs field with default value 0
@@ -1007,8 +1008,16 @@ const getDataForSpecificLevel = async (req, res) => {
         error: `No sets found for exercise ${exerciseName} at level: ${level}.`,
       });
     }
-    const levels = exercise.sets.map((set) => {
-      return set.level;
+    const levels = [];
+    const levelWithEx = [];
+    exercise.sets.map((set) => {
+      // return set.level;
+      if (!levels.includes(set.level)) {
+        levels.push(`${set.level} (${set.exerciseName})`);
+        // if (set.level === lowestLevelSet.level) {
+        //   levelWithEx.push(`${set.level} (${set.exerciseName})`);
+        // }
+      }
     });
     // Return filtered exercise data
     return res.status(200).json({
