@@ -143,39 +143,40 @@ const startWorkOut = async (req, res) => {
     };
 
     if (alreadyFinished) {
-      // Use a modified function to format exercises for already finished workouts
+      // Modified function to include level, levels, and exerciseName in finished workouts
       const formatFinishedExercises = (exercises) => {
         return exercises.map((exercise) => {
           const levels = [];
+          const levelWithEx = [];
           exercise.sets.forEach((set) => {
             if (!levels.includes(set.level)) {
-              levels.push(set.level);
+              levels.push(`${set.level} (${exercise.exerciseName})`);
+              if (set.level === exercise.sets[0].level) {
+                levelWithEx.push(`${set.level} (${exercise.exerciseName})`);
+              }
             }
           });
 
           return {
             exerciseName: exercise.exerciseName,
-            levels: levels.map(
-              (lvl) => `${lvl} (${exercise.sets[0]?.exerciseName || ""})`
-            ), // Add
-            levelsLength: exercise.sets.length, // Include all sets
+            level: levelWithEx[0],
+            levels: levels,
+            levelsLength: levels.length,
             sets: exercise.sets.map((set) => {
               const responseSet = {
+                exerciseName: set.exerciseName,
                 measurementType: set.measurementType,
                 previous: set.previous || 0,
                 lbs: set.lbs || 0,
-                level: set.level,
                 _id: set._id,
               };
 
-              // Ensure reps, time, and distance are assigned correctly
-              // Check if set.value is defined before assigning
               if (set.measurementType === "Reps") {
-                responseSet.reps = set.reps; // Use value for reps, default to 0 if undefined
+                responseSet.reps = set.reps;
               } else if (set.measurementType === "Time") {
-                responseSet.time = set.time; // Use value for time, default to 0 if undefined
+                responseSet.time = set.time;
               } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.distance; // Use value for distance, default to 0 if undefined
+                responseSet.distance = set.distance;
               }
 
               return responseSet;
@@ -206,7 +207,7 @@ const startWorkOut = async (req, res) => {
         },
       });
     }
-
+    
     res.status(200).json({
       workout: {
         ...workoutData,
