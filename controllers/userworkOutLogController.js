@@ -155,9 +155,6 @@ const startWorkOut = async (req, res) => {
 
           return {
             exerciseName: exercise.exerciseName,
-            level: `${lowestLevelSet.level} (${
-              exercise.sets[0]?.exerciseName || ""
-            })`, // Use the first set's exerciseName
             levels: levels.map(
               (lvl) => `${lvl} (${exercise.sets[0]?.exerciseName || ""})`
             ), // Add
@@ -245,6 +242,7 @@ const finishWorkOut = async (req, res) => {
     if (alreadyFinished) {
       return res.status(400).json({ msg: "Workout Already Finished" });
     }
+    
 
     // Fetch workout by ID
     const fetchedWorkOut = await findWorkOutById(workOutId, res);
