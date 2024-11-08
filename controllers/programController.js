@@ -199,7 +199,7 @@ const addWorkoutToWeek = async (req, res) => {
     }
 
     // Convert dates using moment
-    const workoutDate = moment(workout.date).startOf("day"); // Set time to the start of the day
+    const workoutDate = moment(workout.date).startOf("day");
     const programStartDate = moment(program.startDate).startOf("day");
     const programEndDate = moment(program.endDate).startOf("day");
 
@@ -221,9 +221,7 @@ const addWorkoutToWeek = async (req, res) => {
     );
     if (existingWorkout) {
       return res.status(400).json({
-        message: `A workout for this date (${workoutDate.format(
-          "YYYY-MM-DD"
-        )}) has already been added.`,
+        message: `A workout for this date (${workoutDate.format("YYYY-MM-DD")}) has already been added.`,
       });
     }
 
@@ -246,8 +244,7 @@ const addWorkoutToWeek = async (req, res) => {
     }
 
     // Measurement type should be the same
-    const firstMeasurementType =
-      workout.stations[0].exercises[0].sets[0].measurementType; // Using optional chaining
+    const firstMeasurementType = workout.stations[0].exercises[0].sets[0].measurementType;
 
     // Validate each station for required fields and sets
     for (const station of workout.stations) {
@@ -317,14 +314,37 @@ const addWorkoutToWeek = async (req, res) => {
         }
       }
     }
-    //================================================================================================================
 
+    //-------------------------- CHECK AND UPDATE 'selectedLevel' AND 'selectedLevelName' IF EMPTY   --------------------
+    for (const station of workout.stations) {
+      for (const exercise of station.exercises) {
+        const { selectedLevel, selectedLevelName } = exercise;
+
+        // Separate level and name parts
+        const [levelPart, namePart] = exercise.level ? exercise.level.split(" ", 2) : ["", ""];
+
+        // Set "Level 1" part if selectedLevel is empty
+        if (!selectedLevel || selectedLevel.trim() === "") {
+          exercise.selectedLevel = levelPart || "Level 1";
+        }
+
+        // Set remaining part if selectedLevelName is empty
+        if (!selectedLevelName || selectedLevelName.trim() === "") {
+          exercise.selectedLevelName = namePart ? namePart.trim() : "";
+        }
+      }
+    }
+    // Save the updated program with levels updated
+    await program.save();
+
+    // Return success response
     res.status(201).json({ message: "Workout added successfully", program });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Error adding workout", error });
   }
 };
+
 /*=============================================
 =                   Update Workout In a Program                   =
 =============================================*/

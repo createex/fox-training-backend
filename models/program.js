@@ -35,6 +35,14 @@ const exerciseSchema = new mongoose.Schema({
       message: "Each exercise must have at least one set.",
     },
   },
+  selectedLevel: {
+    type: String,
+    default: "", // Default empty string
+  },
+  selectedLevelName: {
+    type: String,
+    default: "", // Default empty string
+  },
 });
 
 // Schema for each station
