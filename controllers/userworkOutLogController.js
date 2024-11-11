@@ -52,11 +52,66 @@ const startWorkOut = async (req, res) => {
       return res.status(400).json({ msg: "Invalid workout format or missing measurement type" });
     }
 
+    // const formatExercises = (exercises) => {
+    //   return exercises.map((exercise) => {
+    //     // Log selectedLevel and selectedLevelName for debugging
+    //     console.log("Selected Level:", exercise.selectedLevel);
+    //     console.log("Selected Level Name:", exercise.selectedLevelName);
+    
+    //     const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
+    //       if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
+    //         return curr;
+    //       }
+    //       return prev;
+    //     }, null);
+    
+    //     const levels = [];
+    //     const levelWithEx = [];
+    //     exercise.sets.forEach((set) => {
+    //       if (!levels.includes(set.level)) {
+    //         levels.push(`${set.level} (${set.exerciseName || ''})`);
+    //         if (set.level === lowestLevelSet.level) {
+    //           levelWithEx.push(`${set.level} (${set.exerciseName || ''})`);
+    //         }
+    //       }
+    //     });
+    
+    //     return {
+    //       exerciseName: exercise.exerciseName,
+    //       level: levelWithEx[0],
+    //       levels: levels,
+    //       levelsLength: levels.length,
+    //       sets: exercise.sets.map((set) => {
+    //         const responseSet = {
+    //           exerciseName: exercise.selectedLevelName,
+    //           measurementType: set.measurementType,
+    //           previous: set.previous || 0,
+    //           lbs: set.lbs || 0,
+    //           level: `${exercise.selectedLevel || "Default Level"} (${exercise.selectedLevelName || "Default Name"})`,
+    //         };
+    
+    //         if (set.measurementType === "Reps") {
+    //           responseSet.reps = set.value;
+    //         } else if (set.measurementType === "Time") {
+    //           responseSet.time = set.value;
+    //         } else if (set.measurementType === "Distance") {
+    //           responseSet.distance = set.value;
+    //         }
+    
+    //         return responseSet;
+    //       }),
+    //     };
+    //   });
+    // };
+    
     const formatExercises = (exercises) => {
       return exercises.map((exercise) => {
-        // Log selectedLevel and selectedLevelName for debugging
-        console.log("Selected Level:", exercise.selectedLevel);
-        console.log("Selected Level Name:", exercise.selectedLevelName);
+        const selectedLevel = exercise.selectedLevel || "Default Level";
+        const selectedLevelName = exercise.selectedLevelName || "Default Name";
+    
+        // Logs to confirm these are populated
+        console.log("Selected Level:", selectedLevel);
+        console.log("Selected Level Name:", selectedLevelName);
     
         const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
@@ -70,15 +125,15 @@ const startWorkOut = async (req, res) => {
         exercise.sets.forEach((set) => {
           if (!levels.includes(set.level)) {
             levels.push(`${set.level} (${set.exerciseName || ''})`);
-            if (set.level === lowestLevelSet.level) {
+            if (lowestLevelSet && set.level === lowestLevelSet.level) {
               levelWithEx.push(`${set.level} (${set.exerciseName || ''})`);
             }
           }
         });
     
         return {
-          exerciseName: exercise.exerciseName,
-          level: levelWithEx[0],
+          exerciseName: selectedLevelName,
+          level: `${selectedLevel} (${selectedLevelName})`,
           levels: levels,
           levelsLength: levels.length,
           sets: exercise.sets.map((set) => {
@@ -87,7 +142,7 @@ const startWorkOut = async (req, res) => {
               measurementType: set.measurementType,
               previous: set.previous || 0,
               lbs: set.lbs || 0,
-              level: `${exercise.selectedLevel || "Default Level"} (${exercise.selectedLevelName || "Default Name"})`,
+              level: `${exercise.selectedLevel} (${exercise.selectedLevelName})`,
             };
     
             if (set.measurementType === "Reps") {
@@ -104,7 +159,8 @@ const startWorkOut = async (req, res) => {
       });
     };
     
-
+    
+    
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
         stationNumber: station.stationNumber,
@@ -149,43 +205,87 @@ const startWorkOut = async (req, res) => {
           }, null);
 
           // Generate unique levels and the appropriate level for finished exercises
+          // const levels = [];
+          // const levelWithEx = [];
+          // exercise.sets.forEach((set) => {
+          //   if (!levels.includes(set.level)) {
+          //     levels.push(`${set.level} (${exercise.exerciseName || ''})`);
+          //     if (set.level === lowestLevelSet.level) {
+          //       levelWithEx.push(`${set.level} (${exercise.exerciseName || ''})`);
+          //     }
+          //   }
+          // });
+
+          // return {
+          //   exerciseName: exercise.exerciseName,
+          //   level: levelWithEx[0] || "",
+          //   levels: levels,
+          //   levelsLength: levels.length,
+          //   sets: exercise.sets.map((set) => {
+          //     const responseSet = {
+          //       exerciseName: exercise.selectedLevelName,
+          //       measurementType: set.measurementType,
+          //       previous: set.previous || 0,
+          //       lbs: set.lbs || 0,
+          //       _id: set._id,
+          //       level: `${exercise.selectedLevel} (${exercise.selectedLevelName})`,
+          //     };
+
+          //     if (set.measurementType === "Reps") {
+          //       responseSet.reps = set.reps;
+          //     } else if (set.measurementType === "Time") {
+          //       responseSet.time = set.time;
+          //     } else if (set.measurementType === "Distance") {
+          //       responseSet.distance = set.distance;
+          //     }
+
+          //     return responseSet;
+          //   }),
+          // };
           const levels = [];
-          const levelWithEx = [];
-          exercise.sets.forEach((set) => {
-            if (!levels.includes(set.level)) {
-              levels.push(`${set.level} (${exercise.exerciseName || ''})`);
-              if (set.level === lowestLevelSet.level) {
-                levelWithEx.push(`${set.level} (${exercise.exerciseName || ''})`);
-              }
-            }
-          });
+const levelWithEx = [];
 
-          return {
-            exerciseName: exercise.exerciseName,
-            level: levelWithEx[0] || "",
-            levels: levels,
-            levelsLength: levels.length,
-            sets: exercise.sets.map((set) => {
-              const responseSet = {
-                exerciseName: exercise.selectedLevelName,
-                measurementType: set.measurementType,
-                previous: set.previous || 0,
-                lbs: set.lbs || 0,
-                _id: set._id,
-                level: `${exercise.selectedLevel} (${exercise.selectedLevelName})`,
-              };
+if (exercise && exercise.sets) {
+  exercise.sets.forEach((set) => {
+    if (!levels.includes(set.level)) {
+      levels.push(`${set.level} (${exercise.exerciseName || ''})`);
+      if (set.level === lowestLevelSet?.level) {
+        levelWithEx.push(`${set.level} (${exercise.exerciseName || ''})`);
+      }
+    }
+  });
+}
 
-              if (set.measurementType === "Reps") {
-                responseSet.reps = set.reps;
-              } else if (set.measurementType === "Time") {
-                responseSet.time = set.time;
-              } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.distance;
-              }
+return {
+  exerciseName: exercise.exerciseName,
+  level: levelWithEx[0] || "",
+  levels: levels,
+  levelsLength: levels.length,
+  sets: exercise.sets.map((set) => {
+    const responseSet = {
+      selectedLevelName: exercise.selectedLevelName || "Default selectExercise Name",
+      measurementType: set.measurementType,
+      previous: set.previous || 0,
+      lbs: set.lbs || 0,
+      _id: set._id,
+      selectedLevel: `${exercise.selectedLevel || 'Default Level'}`, 
+      // selectedLevel: `${exercise.selectedLevel} (${exercise.selectedLevelName})`, 
+    };
 
-              return responseSet;
-            }),
-          };
+    // Populate specific fields based on measurementType
+    if (set.measurementType === "Reps") {
+      responseSet.reps = set.reps;
+    } else if (set.measurementType === "Time") {
+      responseSet.time = set.time;
+    } else if (set.measurementType === "Distance") {
+      responseSet.distance = set.distance;
+    }
+
+    return responseSet;
+  }),
+};
+
+          
         });
       };
 
