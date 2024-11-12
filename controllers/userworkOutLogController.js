@@ -56,26 +56,29 @@ const startWorkOut = async (req, res) => {
 
     const formatExercises = (exercises) => {
       return exercises.map((exercise) => {
-
+        const levels = [];
+        const levelWithEx = [];
+    
+        // Populate levels array with all levels and exercise names.
         exercise.sets.forEach((set) => {
           const levelEntry = `${set.level}${set.exerciseName ? ` (${set.exerciseName})` : ""}`;
-          levels.push(levelEntry);
+          if (!levels.includes(levelEntry)) {
+            levels.push(levelEntry);
+          }
         });
-        
+    
+        // Filter sets based on selected level and populate levelWithEx.
         const filteredSets = exercise.sets.filter(
           (set) => set.level === exercise.selectedLevel
         );
-
-        const levels = [];
-        const levelWithEx = [];
+    
         filteredSets.forEach((set) => {
-          if (!levels.includes(set.level)) {
-            if (set.level === exercise.selectedLevel) {
-              levelWithEx.push(`${set.level} (${set.exerciseName || ""})`);
-            }
+          const levelEntry = `${set.level}${set.exerciseName ? ` (${set.exerciseName})` : ""}`;
+          if (!levelWithEx.includes(levelEntry)) {
+            levelWithEx.push(levelEntry);
           }
         });
-
+    
         return {
           exerciseName: exercise.exerciseName,
           level: `${exercise.selectedLevel || levelWithEx[0] ? `${exercise.selectedLevel || levelWithEx[0]}${exercise.selectedLevelName ? ` (${exercise.selectedLevelName})` : ""}` : ""}`,
@@ -89,7 +92,7 @@ const startWorkOut = async (req, res) => {
               lbs: set.lbs || 0,
               level: `${set.level}`,
             };
-
+    
             if (set.measurementType === "Reps") {
               responseSet.reps = set.value;
             } else if (set.measurementType === "Time") {
@@ -97,12 +100,13 @@ const startWorkOut = async (req, res) => {
             } else if (set.measurementType === "Distance") {
               responseSet.distance = set.value;
             }
-
+    
             return responseSet;
           }),
         };
       });
     };
+    
 
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
