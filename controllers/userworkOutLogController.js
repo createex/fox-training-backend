@@ -56,6 +56,12 @@ const startWorkOut = async (req, res) => {
 
     const formatExercises = (exercises) => {
       return exercises.map((exercise) => {
+
+        exercise.sets.forEach((set) => {
+          const levelEntry = `${set.level}${set.exerciseName ? ` (${set.exerciseName})` : ""}`;
+          levels.push(levelEntry);
+        });
+        
         const filteredSets = exercise.sets.filter(
           (set) => set.level === exercise.selectedLevel
         );
@@ -64,7 +70,6 @@ const startWorkOut = async (req, res) => {
         const levelWithEx = [];
         filteredSets.forEach((set) => {
           if (!levels.includes(set.level)) {
-            levels.push(`${set.level} (${set.exerciseName || ""})`);
             if (set.level === exercise.selectedLevel) {
               levelWithEx.push(`${set.level} (${set.exerciseName || ""})`);
             }
