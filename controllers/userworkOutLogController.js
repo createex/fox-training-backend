@@ -996,7 +996,7 @@ const getDataForSpecificLevel = async (req, res) => {
       .map((set) => {
         const setData = {
           exerciseName: set.exerciseName,
-          level: set.level + ` (${set.exerciseName})`,
+          level: set.level + (set.exerciseName ? ` (${set.exerciseName})` : ""), // Add exerciseName if it exists
           measurementType: set.measurementType,
           previous: set.previous || 0,
           lbs: set.lbs || 0,
@@ -1024,8 +1024,9 @@ const getDataForSpecificLevel = async (req, res) => {
 
     const levels = [];
     exercise.sets.forEach((set) => {
-      if (!levels.includes(set.level)) {
-        levels.push(`${set.level} (${set.exerciseName})`);
+      const levelEntry = `${set.level}${set.exerciseName ? ` (${set.exerciseName})` : ""}`; // Avoid empty parentheses
+      if (!levels.includes(levelEntry)) {
+        levels.push(levelEntry);
       }
     });
 
@@ -1044,6 +1045,7 @@ const getDataForSpecificLevel = async (req, res) => {
     res.status(500).json({ msg: "Cannot return data for level" });
   }
 };
+
 
 /* ========= End of Get Exercises Names  ========= */
 module.exports = {
