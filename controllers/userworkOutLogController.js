@@ -177,12 +177,13 @@ const startWorkOut = async (req, res) => {
                 })`,
               };
 
+              // Fill missing values based on the measurement type
               if (set.measurementType === "Reps") {
-                responseSet.reps = set.reps;
+                responseSet.reps = set.reps || 0;  // Ensuring reps are filled
               } else if (set.measurementType === "Time") {
-                responseSet.time = set.time;
+                responseSet.time = set.time || 0;  // Ensuring time is filled
               } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.distance;
+                responseSet.distance = set.distance || 0;  // Ensuring distance is filled
               }
 
               return responseSet;
@@ -228,6 +229,7 @@ const startWorkOut = async (req, res) => {
 };
 
 
+
 /*============  End of start workout  =============*/
 
 /*=============================================
@@ -245,23 +247,20 @@ const finishWorkOut = async (req, res) => {
       completed: true,
       workOutId,
     });
-    const previousWorkouts = await WorkOutLog.find({ userId });
 
-    if (alreadyFinished) {
-      return res.status(400).json({ msg: "Workout Already Finished" });
-    }
+    // if (alreadyFinished) {
+    //   return res.status(400).json({ msg: "Workout Already Finished" });
+    // }
 
     // Fetch workout by ID
-    const fetchedWorkOut = await findWorkOutById(workOutId, res);
+    const fetchedWorkOut = await WorkOut.findById(workOutId);
     if (!fetchedWorkOut) {
       return res.status(404).json({ msg: "Workout not found" });
     }
 
     // Check if stations length are the same
     if (stations.length !== fetchedWorkOut.workout.stations.length) {
-      return res
-        .status(400)
-        .json({ msg: "Number of station(s) are not the same" });
+      return res.status(400).json({ msg: "Number of stations are not the same" });
     }
 
     // Validate each station for required fields and sets
@@ -273,9 +272,7 @@ const finishWorkOut = async (req, res) => {
       // Validate exercises in each station
       for (const exercise of station.exercises) {
         if (!exercise.exerciseName) {
-          return res
-            .status(400)
-            .json({ message: "Exercise name is required for each exercise." });
+          return res.status(400).json({ message: "Exercise name is required for each exercise." });
         }
 
         // Validate if sets exist
@@ -329,8 +326,6 @@ const finishWorkOut = async (req, res) => {
 
     // Increment total workouts
     user.totalWorkouts += 1;
-    console.log(user);
-    console.log(isNewWeek(user.lastWorkoutDate));
 
     // Check if the workout is in a new week
     if (isNewWeek(user.lastWorkoutDate)) {
@@ -338,24 +333,28 @@ const finishWorkOut = async (req, res) => {
     } else {
       user.workoutsInWeek += 1; // Incrementing the weekly count
     }
-    user.lastWorkoutDate = new Date();
 
+    user.lastWorkoutDate = new Date();
     await user.save();
+
+    // Check and add achievements based on the user's workout data
     await checkAndAddWorkoutAchievements(user._id, user.totalWorkouts);
     await checkAndAddWeeklyAchievements(user._id, user.workoutsInWeek);
     await checkAndAddStreakAchievements(user._id, user.streaks);
     await checkAndAddPersonalBestAwards({
       userId: user._id,
       newWorkout,
-      previousWorkouts,
+      previousWorkouts: await WorkOutLog.find({ userId }),
     });
 
+    // Return success response
     res.status(201).json({ msg: "Workout completed successfully" });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ msg: "Failed to finish workout", error: error });
+    res.status(500).json({ msg: "Failed to finish workout", error });
   }
 };
+
 
 /*============  End of finsih workout  =============*/
 
