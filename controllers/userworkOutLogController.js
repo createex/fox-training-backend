@@ -268,8 +268,7 @@ return {
       previous: set.previous || 0,
       lbs: set.lbs || 0,
       _id: set._id,
-      selectedLevel: `${exercise.selectedLevel || 'Default Level'}`, 
-      // selectedLevel: `${exercise.selectedLevel} (${exercise.selectedLevelName})`, 
+      selectedLevel: `${exercise.selectedLevel || "default"} (${exercise.selectedLevelName || "default"})`,
     };
 
     // Populate specific fields based on measurementType
