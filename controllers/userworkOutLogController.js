@@ -49,7 +49,9 @@ const startWorkOut = async (req, res) => {
 
     if (!fetchedMeasurementType) {
       console.error(`Measurement type not found for workout ${workOutId}`);
-      return res.status(400).json({ msg: "Invalid workout format or missing measurement type" });
+      return res
+        .status(400)
+        .json({ msg: "Invalid workout format or missing measurement type" });
     }
 
     // const formatExercises = (exercises) => {
@@ -57,14 +59,14 @@ const startWorkOut = async (req, res) => {
     //     // Log selectedLevel and selectedLevelName for debugging
     //     console.log("Selected Level:", exercise.selectedLevel);
     //     console.log("Selected Level Name:", exercise.selectedLevelName);
-    
+
     //     const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
     //       if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
     //         return curr;
     //       }
     //       return prev;
     //     }, null);
-    
+
     //     const levels = [];
     //     const levelWithEx = [];
     //     exercise.sets.forEach((set) => {
@@ -75,7 +77,7 @@ const startWorkOut = async (req, res) => {
     //         }
     //       }
     //     });
-    
+
     //     return {
     //       exerciseName: exercise.exerciseName,
     //       level: levelWithEx[0],
@@ -89,7 +91,7 @@ const startWorkOut = async (req, res) => {
     //           lbs: set.lbs || 0,
     //           level: `${exercise.selectedLevel || "Default Level"} (${exercise.selectedLevelName || "Default Name"})`,
     //         };
-    
+
     //         if (set.measurementType === "Reps") {
     //           responseSet.reps = set.value;
     //         } else if (set.measurementType === "Time") {
@@ -97,40 +99,40 @@ const startWorkOut = async (req, res) => {
     //         } else if (set.measurementType === "Distance") {
     //           responseSet.distance = set.value;
     //         }
-    
+
     //         return responseSet;
     //       }),
     //     };
     //   });
     // };
-    
+
     const formatExercises = (exercises) => {
       return exercises.map((exercise) => {
         const selectedLevel = exercise.selectedLevel || "Default Level";
         const selectedLevelName = exercise.selectedLevelName || "Default Name";
-    
+
         // Logs to confirm these are populated
         console.log("Selected Level:", selectedLevel);
         console.log("Selected Level Name:", selectedLevelName);
-    
+
         const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
             return curr;
           }
           return prev;
         }, null);
-    
+
         const levels = [];
         const levelWithEx = [];
         exercise.sets.forEach((set) => {
           if (!levels.includes(set.level)) {
-            levels.push(`${set.level} (${set.exerciseName || ''})`);
+            levels.push(`${set.level} (${set.exerciseName || ""})`);
             if (lowestLevelSet && set.level === lowestLevelSet.level) {
-              levelWithEx.push(`${set.level} (${set.exerciseName || ''})`);
+              levelWithEx.push(`${set.level} (${set.exerciseName || ""})`);
             }
           }
         });
-    
+
         return {
           exerciseName: selectedLevelName,
           level: `${selectedLevel} (${selectedLevelName})`,
@@ -144,7 +146,7 @@ const startWorkOut = async (req, res) => {
               lbs: set.lbs || 0,
               level: `${exercise.selectedLevel} (${exercise.selectedLevelName})`,
             };
-    
+
             if (set.measurementType === "Reps") {
               responseSet.reps = set.value;
             } else if (set.measurementType === "Time") {
@@ -152,15 +154,13 @@ const startWorkOut = async (req, res) => {
             } else if (set.measurementType === "Distance") {
               responseSet.distance = set.value;
             }
-    
+
             return responseSet;
           }),
         };
       });
     };
-    
-    
-    
+
     const filteredStations = fetchedWorkout.workout.stations
       .map((station) => ({
         stationNumber: station.stationNumber,
@@ -197,6 +197,8 @@ const startWorkOut = async (req, res) => {
       // Format the finished exercises with the correct exerciseName and level
       const formatFinishedExercises = (exercises) => {
         return exercises.map((exercise) => {
+          console.log("#### EXCERCISE");
+          console.log(exercises);
           const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
             if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
               return curr;
@@ -243,56 +245,63 @@ const startWorkOut = async (req, res) => {
           //   }),
           // };
           const levels = [];
-const levelWithEx = [];
+          const levelWithEx = [];
 
-if (exercise && exercise.sets) {
-  exercise.sets.forEach((set) => {
-    if (!levels.includes(set.level)) {
-      levels.push(`${set.level} (${exercise.exerciseName || ''})`);
-      if (set.level === lowestLevelSet?.level) {
-        levelWithEx.push(`${set.level} (${exercise.exerciseName || ''})`);
-      }
-    }
-  });
-}
+          if (exercise && exercise.sets) {
+            exercise.sets.forEach((set) => {
+              if (!levels.includes(set.level)) {
+                levels.push(`${set.level} (${exercise.exerciseName || ""})`);
+                if (set.level === lowestLevelSet?.level) {
+                  levelWithEx.push(
+                    `${set.level} (${exercise.exerciseName || ""})`
+                  );
+                }
+              }
+            });
+          }
+          console.log("################ DEBUG", exercise);
+          return {
+            exerciseName: exercise.exerciseName,
+            level: levelWithEx[0] || "",
+            levels: levels,
+            levelsLength: levels.length,
+            sets: exercise.sets.map((set) => {
+              const responseSet = {
+                selectedLevelName:
+                  exercise.selectedLevelName || "Default selectExercise Name",
+                measurementType: set.measurementType,
+                previous: set.previous || 0,
+                lbs: set.lbs || 0,
+                _id: set._id,
+                selectedLevel: `${exercise.selectedLevel || "default"} (${
+                  exercise.selectedLevelName || "default"
+                })`,
+              };
 
-return {
-  exerciseName: exercise.exerciseName,
-  level: levelWithEx[0] || "",
-  levels: levels,
-  levelsLength: levels.length,
-  sets: exercise.sets.map((set) => {
-    const responseSet = {
-      selectedLevelName: exercise.selectedLevelName || "Default selectExercise Name",
-      measurementType: set.measurementType,
-      previous: set.previous || 0,
-      lbs: set.lbs || 0,
-      _id: set._id,
-      selectedLevel: `${exercise.selectedLevel || "default"} (${exercise.selectedLevelName || "default"})`,
-    };
+              // Populate specific fields based on measurementType
+              if (set.measurementType === "Reps") {
+                responseSet.reps = set.reps;
+              } else if (set.measurementType === "Time") {
+                responseSet.time = set.time;
+              } else if (set.measurementType === "Distance") {
+                responseSet.distance = set.distance;
+              }
 
-    // Populate specific fields based on measurementType
-    if (set.measurementType === "Reps") {
-      responseSet.reps = set.reps;
-    } else if (set.measurementType === "Time") {
-      responseSet.time = set.time;
-    } else if (set.measurementType === "Distance") {
-      responseSet.distance = set.distance;
-    }
-
-    return responseSet;
-  }),
-};
-
-          
+              return responseSet;
+            }),
+          };
         });
       };
 
-      const alreadyFinishedStations = alreadyFinished.stations.map((station) => {
-        const plainStation = station.toObject();
-        plainStation.exercises = formatFinishedExercises(plainStation.exercises);
-        return plainStation;
-      });
+      const alreadyFinishedStations = alreadyFinished.stations.map(
+        (station) => {
+          const plainStation = station.toObject();
+          plainStation.exercises = formatFinishedExercises(
+            plainStation.exercises
+          );
+          return plainStation;
+        }
+      );
 
       return res.status(200).json({
         workout: {
@@ -319,8 +328,6 @@ return {
     res.status(500).json({ msg: "Server error:", error });
   }
 };
-
-
 
 /*============  End of start workout  =============*/
 
@@ -450,7 +457,6 @@ const finishWorkOut = async (req, res) => {
     res.status(500).json({ msg: "Failed to finish workout", error: error });
   }
 };
-
 
 /*============  End of finsih workout  =============*/
 
