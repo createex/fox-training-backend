@@ -312,13 +312,13 @@ const fetchUserTodaysWorkout = async (res) => {
   // Initialize a variable to store today's workout details
   let todaysWorkout = null;
   let weekNumber = null;
-  let workoutId = null;
 
   // Iterate through weeks to find today's workout
   for (const week of program.weeks) {
-    const workoutForToday = week.workouts.find((workout) =>
-      moment(workout.date).isBetween(startOfDay, endOfDay, null, "[]")
-    );
+    const workoutForToday = week.workouts.find((workout) => {
+      const workoutDate = moment(workout.date).startOf('day').toDate(); // Normalize to start of day
+      return workoutDate >= startOfDay && workoutDate <= endOfDay;
+    });
 
     if (workoutForToday) {
       todaysWorkout = workoutForToday;
@@ -338,6 +338,7 @@ const fetchUserTodaysWorkout = async (res) => {
     workout: todaysWorkout,
   };
 };
+
 
 /**
  * Gets the MongoDB filter for a specified time period.
