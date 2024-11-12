@@ -135,7 +135,7 @@ const startWorkOut = async (req, res) => {
 
         return {
           exerciseName: exercise.exerciseName,
-          level: levelWithEx[0],
+          level: `${exercise.selectedLevel || levelWithEx[0] ? `${exercise.selectedLevel || levelWithEx[0]}${exercise.selectedLevelName ? ` (${exercise.selectedLevelName})` : ""}` : ""}`,
           levels: levels,
           levelsLength: levels.length,
           sets: exercise.sets.map((set) => {
@@ -259,7 +259,7 @@ const startWorkOut = async (req, res) => {
           }
           return {
             exerciseName: exercise.exerciseName,
-            level: levelWithEx[0] || "",
+            level: `${exercise.selectedLevel || levelWithEx[0] ? `${exercise.selectedLevel || levelWithEx[0]}${exercise.selectedLevelName ? ` (${exercise.selectedLevelName})` : ""}` : ""}`,
             levels: levels,
             levelsLength: levels.length,
             sets: exercise.sets.map((set) => {
