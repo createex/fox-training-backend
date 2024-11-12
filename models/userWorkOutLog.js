@@ -68,6 +68,14 @@ const exerciseSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  selectedLevel: {
+    type: String,
+    default: "", // Default empty string
+  },
+  selectedLevelName: {
+    type: String,
+    default: "", // Default empty string
+  },
   sets: {
     type: [setSchema], // Multiple sets for different levels
     required: true,

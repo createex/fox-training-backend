@@ -112,8 +112,8 @@ const startWorkOut = async (req, res) => {
         const selectedLevelName = exercise.selectedLevelName || "Default Name";
 
         // Logs to confirm these are populated
-        console.log("Selected Level:", selectedLevel);
-        console.log("Selected Level Name:", selectedLevelName);
+        // console.log("Selected Level:", selectedLevel);
+        // console.log("Selected Level Name:", selectedLevelName);
 
         const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
           if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
@@ -134,8 +134,8 @@ const startWorkOut = async (req, res) => {
         });
 
         return {
-          exerciseName: selectedLevelName,
-          level: `${selectedLevel} (${selectedLevelName})`,
+          exerciseName: exercise.exerciseName,
+          level: levelWithEx[0],
           levels: levels,
           levelsLength: levels.length,
           sets: exercise.sets.map((set) => {
@@ -197,8 +197,6 @@ const startWorkOut = async (req, res) => {
       // Format the finished exercises with the correct exerciseName and level
       const formatFinishedExercises = (exercises) => {
         return exercises.map((exercise) => {
-          console.log("#### EXCERCISE");
-          console.log(exercises);
           const lowestLevelSet = exercise.sets.reduce((prev, curr) => {
             if (!prev || curr.level.toLowerCase() < prev.level.toLowerCase()) {
               return curr;
@@ -259,7 +257,6 @@ const startWorkOut = async (req, res) => {
               }
             });
           }
-          console.log("################ DEBUG", exercise);
           return {
             exerciseName: exercise.exerciseName,
             level: levelWithEx[0] || "",
@@ -268,7 +265,7 @@ const startWorkOut = async (req, res) => {
             sets: exercise.sets.map((set) => {
               const responseSet = {
                 selectedLevelName:
-                  exercise.selectedLevelName || "Default selectExercise Name",
+                exercise.selectedLevelName || "Default selectExercise Name",
                 measurementType: set.measurementType,
                 previous: set.previous || 0,
                 lbs: set.lbs || 0,
