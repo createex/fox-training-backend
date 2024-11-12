@@ -241,19 +241,22 @@ const finishWorkOut = async (req, res) => {
   const userId = req.user._id;
 
   try {
+    // Convert workOutId to ObjectId if it's a string
+    const convertedWorkOutId = mongoose.Types.ObjectId(workOutId);
+
     // Check if the workout has already been finished by the user
     const alreadyFinished = await WorkOutLog.findOne({
       userId,
       completed: true,
-      workOutId,
+      workOutId: convertedWorkOutId,
     });
 
-    // if (alreadyFinished) {
-    //   return res.status(400).json({ msg: "Workout Already Finished" });
-    // }
+    if (alreadyFinished) {
+      return res.status(400).json({ msg: "Workout Already Finished" });
+    }
 
     // Fetch workout by ID
-    const fetchedWorkOut = await WorkOut.findById(workOutId);
+    const fetchedWorkOut = await WorkOut.findById(convertedWorkOutId);
     if (!fetchedWorkOut) {
       return res.status(404).json({ msg: "Workout not found" });
     }
@@ -312,7 +315,7 @@ const finishWorkOut = async (req, res) => {
     // Create new workout log entry
     const newWorkout = await WorkOutLog.create({
       userId,
-      workOutId,
+      workOutId: convertedWorkOutId,
       programId: fetchedWorkOut.programId,
       weekNumber: fetchedWorkOut.weekNumber,
       numberOfStations: fetchedWorkOut.workout.numberOfStations,
@@ -350,8 +353,8 @@ const finishWorkOut = async (req, res) => {
     // Return success response
     res.status(201).json({ msg: "Workout completed successfully" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "Failed to finish workout", error });
+    console.error("Error completing workout:", error); // Improved error logging
+    res.status(500).json({ msg: "Failed to finish workout", error: error.message });
   }
 };
 
