@@ -204,11 +204,11 @@ const addWorkoutToWeek = async (req, res) => {
     const programEndDate = moment(program.endDate).startOf("day");
 
     // Check if the workout date is within the program's start and end dates
-    if (!workoutDate.isBetween(programStartDate, programEndDate, null, "[]")) {
-      return res.status(400).json({
-        message: `Workout date must be between program start date (${program.startDate}) and end date (${program.endDate}).`,
-      });
-    }
+    // if (!workoutDate.isBetween(programStartDate, programEndDate, null, "[]")) {
+    //   return res.status(400).json({
+    //     message: `Workout date must be between program start date (${program.startDate}) and end date (${program.endDate}).`,
+    //   });
+    // }
 
     const week = program.weeks.find((w) => w.weekNumber === weekNumber);
     if (!week) {
