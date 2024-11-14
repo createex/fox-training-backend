@@ -320,12 +320,9 @@ const addWorkoutToWeek = async (req, res) => {
       for (const exercise of station.exercises) {
         const { selectedLevel, selectedLevelName } = exercise;
 
-        // Separate level and name parts
-        const [levelPart, namePart] = exercise.level ? exercise.level.split(" ", 2) : ["", ""];
-
         // Set "Level 1" part if selectedLevel is empty
         if (!selectedLevel || selectedLevel.trim() === "") {
-          exercise.selectedLevel = levelPart || "Level 1";
+          exercise.selectedLevel = "Level 1" + exercise.sets[0].exerciseName ? ` (${set.exerciseName})` : "";
         }
 
         // Set remaining part if selectedLevelName is empty

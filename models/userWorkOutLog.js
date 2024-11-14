@@ -124,7 +124,6 @@ const workoutLogSchema = new mongoose.Schema({
   },
   workOutId: {
     type: mongoose.Schema.Types.ObjectId,
-
     required: true,
   },
   weekNumber: {

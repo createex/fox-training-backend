@@ -33,266 +33,124 @@ const getTodaysWorkOut = async (req, res) => {
 /*=============================================
 =                   start workout                   =
 =============================================*/
-const startWorkOut = async (req, res) => {
+//Replacement of startWorkout API
+const getWorkoutData = async (req, res) => {
   try {
-    const { workOutId } = req.params;
-    const fetchedWorkout = await findWorkOutById(workOutId, res);
+    const { workOutId, userId } = req.params;
+    let workoutData;
+    console.log(req.params);
 
-    if (!fetchedWorkout || !fetchedWorkout.workout) {
-      console.error(`Workout with ID ${workOutId} not found or incomplete`);
-      return res.status(404).json({ msg: "Workout not found" });
-    }
+    const workoutLog = await WorkOutLog.findOne({ 
+      workOutId: workOutId, // add mongoose.Types.ObjectId() if needed 
+      userId: userId
+    });
+        
+    console.log('Retrieved WorkoutLog:', workoutLog);
 
-    const fetchedMeasurementType =
-      fetchedWorkout?.workout?.stations?.[0]?.exercises?.[0]?.sets?.[0]
-        ?.measurementType;
+    if (workoutLog) {
+      // Workout is completed, get data from workoutLog without populating programId
+      workoutData = {
+        workout: {
+          stations: workoutLog.stations.map((station) => ({
+            stationNumber: station.stationNumber,
+            completed: station.completed,
+            exercises: station.exercises.map((exercise) => {
+              const levels = [...new Set(exercise.sets.map((set) =>
+                `${set.level} (${exercise.exerciseName})`
+              ))];
+              return {
+                exerciseName: exercise.exerciseName,
+                level: `${exercise.selectedLevel} (${exercise.exerciseName})`,
+                levels: levels,
+                levelsLength: levels.length,
+                sets: exercise.sets.map((set) => {
+                  const setDetails = {
+                    exerciseName: exercise.exerciseName,
+                    measurementType: set.measurementType,
+                    previous: set.previous || 0,
+                    lbs: set.lbs || 0,
+                    level: `${set.level}`,
+                  };
+                  if (set.measurementType === "Reps") {
+                    setDetails.reps = set.reps || 0;
+                  } else if (set.measurementType === "Time") {
+                    setDetails.time = set.time || 0;
+                  } else if (set.measurementType === "Distance") {
+                    setDetails.distance = set.distance || 0;
+                  }
+                  return setDetails;
+                }),
+              };
+            }),
+          })),
+          weekNumber: workoutLog.weekNumber,
+          programId: workoutLog.programId, // No population here
+          workOutId: workoutLog.workOutId,
+          completed: true,
+          measurementType: workoutLog.stations[0].exercises[0].sets[0].measurementType || "Time",
+        },
+      };
+    } else {
+      // Workout is not completed, retrieve data from Program collection
+      const workout = await findWorkOutById(workOutId, res);
+      if (!workout?.workout) {
+        return res.status(404).json({ msg: "Workout not found" });
+      }
 
-    if (!fetchedMeasurementType) {
-      console.error(`Measurement type not found for workout ${workOutId}`);
-      return res
-        .status(400)
-        .json({ msg: "Invalid workout format or missing measurement type" });
-    }
-
-    const formatExercises = (exercises) => {
-      return exercises.map((exercise) => {
-        const levels = [];
-        const levelWithEx = [];
-    
-        // Populate levels array with all levels and exercise names.
-        exercise.sets.forEach((set) => {
-          const levelEntry = `${set.level}${set.exerciseName ? ` (${set.exerciseName})` : ""}`;
-          if (!levels.includes(levelEntry)) {
-            levels.push(levelEntry);
-          }
-        });
-    
-        // Filter sets based on selected level and populate levelWithEx.
-        const filteredSets = exercise.sets.filter(
-          (set) => set.level === exercise.selectedLevel
-        );
-    
-        filteredSets.forEach((set) => {
-          const levelEntry = `${set.level}${set.exerciseName ? ` (${set.exerciseName})` : ""}`;
-          if (!levelWithEx.includes(levelEntry)) {
-            levelWithEx.push(levelEntry);
-          }
-        });
-    
-        return {
-          exerciseName: exercise.exerciseName,
-          level: levelWithEx[0] || levels[0],
-          levels: levels,
-          levelsLength: levels.length,
-          sets: filteredSets.map((set) => {
-            const responseSet = {
-              exerciseName: exercise.selectedLevelName,
-              measurementType: set.measurementType,
-              previous: set.previous || 0,
-              lbs: set.lbs || 0,
-              level: `${set.level}`,
-            };
-    
-            if (set.measurementType === "Reps") {
-              responseSet.reps = set.value;
-            } else if (set.measurementType === "Time") {
-              responseSet.time = set.value;
-            } else if (set.measurementType === "Distance") {
-              responseSet.distance = set.value;
-            }
-    
-            return responseSet;
-          }),
-        };
-      });
-    };
-    
-
-    const filteredStations = fetchedWorkout.workout.stations
-      .map((station) => ({
-        stationNumber: station.stationNumber,
-        completed: false,
-        exercises: formatExercises(station.exercises),
-      }))
-      .filter((station) => station.exercises.length > 0); // Filter out stations with no exercises
-
-    if (filteredStations.length === 0) {
-      return res.status(404).json({
-        msg: "No stations found",
-        filteredStations,
-      });
-    }
-
-    // Check if the workout has been finished already
-    const alreadyFinished = await WorkOutLog.findOne(
-      {
-        workOutId,
-        userId: req.user._id,
-      },
-      { "stations.exercises._id": 0, "stations._id": 0 }
-    );
-
-    const workoutData = {
-      stations: filteredStations,
-      weekNumber: fetchedWorkout.weekNumber,
-      programId: fetchedWorkout.programId,
-      workOutId: fetchedWorkout.workout._id,
-      programTitle: fetchedWorkout.programTitle,
-    };
-
-    if (alreadyFinished) {
-      const formatFinishedExercises = (exercises) => {
+      const formatExercises = (exercises) => {
         return exercises.map((exercise) => {
+          const levels = [...new Set(exercise.sets.map((set) =>
+            `${set.level} (${set.exerciseName || ""})`
+          ))];
+
           const filteredSets = exercise.sets.filter(
             (set) => set.level === exercise.selectedLevel
           );
 
-          const levels = [];
-          const levelWithEx = [];
-          filteredSets.forEach((set) => {
-            if (!levels.includes(set.level)) {
-              levels.push(`${set.level} (${exercise.exerciseName || ""})`);
-              if (set.level === exercise.selectedLevel) {
-                levelWithEx.push(`${set.level} (${exercise.exerciseName || ""})`);
-              }
-            }
-          });
-
           return {
             exerciseName: exercise.exerciseName,
-            level: levelWithEx[0] || levels[0],
+            level: `${exercise.selectedLevel} (${exercise.exerciseName || ""})`,
             levels: levels,
             levelsLength: levels.length,
             sets: filteredSets.map((set) => {
-              const responseSet = {
-                selectedLevelName:
-                  exercise.selectedLevelName || "Default selectExercise Name",
+              const setDetails = {
+                exerciseName: exercise.exerciseName,
                 measurementType: set.measurementType,
                 previous: set.previous || 0,
                 lbs: set.lbs || 0,
                 level: `${set.level}`,
-                _id: set._id,
-                selectedLevel: `${exercise.selectedLevel || "default"} (${
-                  exercise.selectedLevelName || "default"
-                })`,
               };
-
-              // Fill missing values based on the measurement type
               if (set.measurementType === "Reps") {
-                responseSet.reps = set.reps || 0;  // Ensuring reps are filled
+                setDetails.reps = set.value || 0;
               } else if (set.measurementType === "Time") {
-                responseSet.time = set.time || 0;  // Ensuring time is filled
+                setDetails.time = set.value || 0;
               } else if (set.measurementType === "Distance") {
-                responseSet.distance = set.distance || 0;  // Ensuring distance is filled
+                setDetails.distance = set.value || 0;
               }
-
-              return responseSet;
+              return setDetails;
             }),
           };
         });
       };
 
-      const alreadyFinishedStations = alreadyFinished.stations.map(
-        (station) => {
-          const plainStation = station.toObject();
-          plainStation.exercises = formatFinishedExercises(
-            plainStation.exercises
-          );
-          return plainStation;
-        }
-      );
+      const formattedStations = workout.workout.stations.map((station) => ({
+        stationNumber: station.stationNumber,
+        completed: false,
+        exercises: formatExercises(station.exercises),
+      }));
 
-      return res.status(200).json({
+      workoutData = {
         workout: {
-          stations: alreadyFinishedStations,
-          weekNumber: alreadyFinished.weekNumber,
-          programId: alreadyFinished.programId,
-          completed: alreadyFinished.completed,
-          workOutId: alreadyFinished.workOutId,
-          measurementType: fetchedMeasurementType,
-          programTitle: fetchedWorkout.programTitle,
+          stations: formattedStations,
+          weekNumber: workout.weekNumber,
+          programId: workout.programId,
+          workOutId: workout.workout._id,
+          programTitle: workout.programTitle,
+          completed: false,
+          measurementType: workout.workout.stations[0].exercises[0].sets[0].measurementType || "Time",
         },
-      });
+      };
     }
-
-    res.status(200).json({
-      workout: {
-        ...workoutData,
-        completed: false,
-        measurementType: fetchedMeasurementType,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error:", error });
-  }
-};
-
-//Replacement of startWorkout API
-const getWorkoutData = async (req, res) => {
-  try {
-    const { workOutId } = req.params;
-    const workout = await findWorkOutById(workOutId, res);
-
-    if (!workout?.workout) {
-      return res.status(404).json({ msg: "Workout not found" });
-    }
-
-    const measurementType = workout?.workout?.stations?.[0]?.exercises?.[0]?.sets?.[0]?.measurementType || "Time";
-
-    const formatExercises = (exercises) => {
-      return exercises.map((exercise) => {
-        const levels = [...new Set(exercise.sets.map((set) =>
-          `${set.level} (${set.exerciseName || ""})`
-        ))];
-
-        const filteredSets = exercise.sets.filter(
-          (set) => set.level === exercise.selectedLevel
-        );
-
-        return {
-          exerciseName: exercise.exerciseName,
-          level: `${exercise.selectedLevel} (${exercise.exerciseName || ""})`,
-          levels: levels,
-          levelsLength: levels.length,
-          sets: filteredSets.map((set) => {
-            const setDetails = {
-              exerciseName: exercise.exerciseName,
-              measurementType: set.measurementType,
-              previous: set.previous || 0,
-              lbs: set.lbs || 0,
-              level: `${set.level}`,
-            };
-            if (set.measurementType === "Reps") {
-              setDetails.reps = set.value || 0;
-            } else if (set.measurementType === "Time") {
-              setDetails.time = set.value || 0;
-            } else if (set.measurementType === "Distance") {
-              setDetails.distance = set.value || 0;
-            }
-            return setDetails;
-          }),
-        };
-      });
-    };
-
-    const formattedStations = workout.workout.stations.map((station) => ({
-      stationNumber: station.stationNumber,
-      completed: false,
-      exercises: formatExercises(station.exercises),
-    }));
-
-    const workoutData = {
-      workout: {
-        stations: formattedStations,
-        weekNumber: workout.weekNumber,
-        programId: workout.programId,
-        workOutId: workout.workout._id,
-        programTitle: workout.programTitle,
-        completed: false,
-        measurementType,
-      },
-    };
 
     res.status(200).json(workoutData);
   } catch (error) {
@@ -300,6 +158,7 @@ const getWorkoutData = async (req, res) => {
     res.status(500).json({ msg: "Server error", error });
   }
 };
+
 
 /*============  End of start workout  =============*/
 
@@ -315,48 +174,41 @@ const finishWorkOut = async (req, res) => {
     // Convert workOutId to an ObjectId
     const convertedWorkOutId = new mongoose.Types.ObjectId(workOutId);
 
-    // Find the program containing the workout
+    // Find the program to validate the workout exists, and fetch the week number
     const program = await Program.findOne({
       "weeks.workouts._id": convertedWorkOutId,
     });
 
     if (!program) {
-      return res.status(404).json({ msg: "Workout not found" });
+      return res.status(404).json({ msg: "Workout not found in any program" });
     }
 
-    // Find the specific workout within the program's weeks and get week number
-    let fetchedWorkOut = null;
+    // Identify the specific workout's week number
     let weekNumber = null;
     for (let i = 0; i < program.weeks.length; i++) {
       const week = program.weeks[i];
-      fetchedWorkOut = week.workouts.find(
+      const workoutExists = week.workouts.some(
         (workout) => workout._id.toString() === workOutId
       );
-      if (fetchedWorkOut) {
-        weekNumber = i + 1; // Weeks are usually 1-indexed
+      if (workoutExists) {
+        weekNumber = i + 1; // Weeks are typically 1-indexed
         break;
       }
     }
 
-    if (!fetchedWorkOut) {
-      return res.status(404).json({ msg: "Workout not found" });
+    if (weekNumber === null) {
+      return res.status(404).json({ msg: "Workout not found in specified week" });
     }
 
-    // // Verify the number of stations matches
-    // if (stations.length !== fetchedWorkOut.stations.length) {
-    //   return res.status(400).json({ msg: "Number of stations are not the same" });
-    // }
-
-    
-    // Prepare workout log with all required fields
+    // Prepare the workout log entry
     const workoutLog = {
       userId: userId,
       programId: program._id,
-      workOutId: workOutId,
+      workOutId: convertedWorkOutId,
       weekNumber: weekNumber,
       stations: stations,
       numberOfStations: stations.length,
-      completed: true, // Setting to true since the workout is finished
+      completed: true,
       completedAt: new Date(),
     };
 
@@ -364,14 +216,11 @@ const finishWorkOut = async (req, res) => {
     const savedLog = await WorkOutLog.create(workoutLog);
 
     res.status(201).json({ msg: "Workout completed successfully", data: savedLog });
-
   } catch (error) {
     console.error("Error completing workout:", error);
     res.status(500).json({ msg: "Failed to finish workout", error: error.message });
   }
 };
-
-
 
 /*============  End of finsih workout  =============*/
 
@@ -1062,12 +911,135 @@ const getDataForSpecificLevel = async (req, res) => {
   }
 };
 
+const getSpecificLevelData = async (req, res) => {
+  try {
+    const { workoutId } = req.params;
+    const { level, stationNumber, exerciseName } = req.query;
+    const userId = req.user._id;
+
+    // Validate query parameters
+    if (!level || !exerciseName || !stationNumber) {
+      return res.status(400).json({
+        error: "Missing required parameters: level, exerciseName, and stationNumber are required."
+      });
+    }
+
+    // Helper function to find exercise and filter sets by level
+    const findExerciseLevel = (workoutData) => {
+      const station = workoutData.stations.find(station => station.stationNumber === parseInt(stationNumber));
+      if (!station) return null;
+
+      const exercise = station.exercises.find(exercise => exercise.exerciseName === exerciseName);
+      if (!exercise) return null;
+
+      // Filter sets to only include those with the matching level
+      const matchingSets = exercise.sets.filter(set => set.level === level);
+
+      // Check if there are matching sets
+      if (matchingSets.length > 0) {
+        exercise.sets = matchingSets; // Only keep matching sets
+        return { exercise, selectedLevel: matchingSets[0] }; // Return the first matching set for selected level
+      }
+
+      return null;
+    };
+
+    // Check in WorkoutLog first
+    let workoutLog = await WorkOutLog.findOne({ workOutId: workoutId, userId });
+    let result = findExerciseLevel(workoutLog);
+
+    if (workoutLog && result) {
+      // Update selectedLevel using the first matching set's exerciseName
+      result.exercise.selectedLevel = `${level} (${result.selectedLevel.exerciseName})`;
+      await workoutLog.save();
+
+      return res.status(200).json(formatResponse(result.exercise));
+    }
+
+    // If not found in WorkoutLog, check in Program collection
+    const program = await Program.findOne({ "weeks.workouts._id": workoutId });
+    if (!program) {
+      return res.status(404).json({ error: "No matching workout found in either WorkoutLog or Program." });
+    }
+
+    const workout = program.weeks.flatMap(week => week.workouts)
+      .find(workout => workout.stations.some(station => station.stationNumber === parseInt(stationNumber)));
+
+    if (!workout) {
+      return res.status(404).json({ error: `Workout not found for the given parameters.` });
+    }
+
+    // Find exercise and level in the program
+    result = findExerciseLevel(workout);
+    if (!result) {
+      return res.status(404).json({ error: `Level ${level} not found for exercise ${exerciseName}.` });
+    }
+
+    // Update selected level in the new workout log entry
+    result.exercise.selectedLevel = `${level} (${result.selectedLevel.exerciseName})`;
+    
+    let weekNumber = null;
+    for (let i = 0; i < program.weeks.length; i++) {
+      const week = program.weeks[i];
+      const workoutExists = week.workouts.some(
+        (workout) => workout._id.toString() === workoutId
+      );
+      if (workoutExists) {
+        weekNumber = i + 1; // Weeks are typically 1-indexed
+        break;
+      }
+    }
+
+    if (weekNumber === null) {
+      return res.status(404).json({ msg: "Workout not found in specified week" });
+    }
+    
+    workoutLog = {
+      userId: userId,
+      programId: program._id,
+      workOutId: workoutId,
+      weekNumber: weekNumber,
+      stations: workout.stations,
+      numberOfStations: workout.stations.length,
+      completed: true,
+      completedAt: new Date(),
+    };
+
+    // Save the workout log to the database
+    // await WorkOutLog.create(workoutLog);
+
+    // return res.status(200).json(formatResponse(result.exercise));
+    return res.status(200).json(formatResponse(workoutLog));
+
+  } catch (error) {
+    console.error("Error fetching workout details:", error);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+// Helper function to format the response
+const formatResponse = (exercise) => ({
+  exercise: {
+    exerciseName: exercise.exerciseName,
+    levels: exercise.sets ? exercise.sets.map(set => set.level) : [],
+    levelsLength: exercise.sets ? exercise.sets.length : 0,
+    level: exercise.selectedLevel,
+    sets: exercise.sets ? exercise.sets.map(set => ({
+      exerciseName: set.exerciseName,
+      level: set.level,
+      measurementType: set.measurementType,
+      previous: set.previous || 0,
+      lbs: set.lbs || 0,
+      _id: set._id,
+    })) : [],
+  }
+});
+
 
 /* ========= End of Get Exercises Names  ========= */
 module.exports = {
   getCompletedWeeklyGoal,
   getTodaysWorkOut,
-  startWorkOut,
   getUserTotalWorkouts,
   finishWorkOut,
   setWeeklyGoal,
@@ -1078,4 +1050,5 @@ module.exports = {
   searchExercise,
   getDataForSpecificLevel,
   getWorkoutData,
+  getSpecificLevelData,
 };

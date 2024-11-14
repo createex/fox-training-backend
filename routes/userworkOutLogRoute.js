@@ -14,6 +14,7 @@ const {
   getExercisesNames,
   searchExercise,
   getDataForSpecificLevel,
+  getSpecificLevelData
 } = require("../controllers/userworkOutLogController");
 const updateActiveStatus = require("../middleware/updateActiveStatus");
 
@@ -90,6 +91,6 @@ router.get(
   updateActiveStatus,
   searchExercise
 );
-router.get("/exercises/level/:workoutId", getDataForSpecificLevel);
+router.get("/exercises/level/:workoutId", authMiddleWare, getSpecificLevelData);
 
 module.exports = router;
