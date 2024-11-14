@@ -2,13 +2,13 @@ const express = require("express");
 const router = express.Router();
 const {
   startWorkOut,
+  getWorkoutData,
   finishWorkOut,
   setWeeklyGoal,
   userCompletedWorkOuts,
   getUserAwAwards,
   getTodaysWorkOut,
   getUserTotalWorkouts,
-
   getCompletedWeeklyGoal,
   editCompletedWorkout,
   getExercisesNames,
@@ -32,7 +32,7 @@ router.get(
   "/start-workout/:workOutId",
   authMiddleWare,
   updateActiveStatus,
-  startWorkOut
+  getWorkoutData
 );
 //finish workout
 router.post(

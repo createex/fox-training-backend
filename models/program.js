@@ -97,6 +97,10 @@ const workoutSchema = new mongoose.Schema({
     type: Number, // Store the duration in minutes
     min: [1, "Workout duration must be at least 1 minute."],
   },
+  completed: {
+    type: Boolean, // Track if the workout is completed
+    default: false,
+  },
 });
 
 // Schema for each week in the program

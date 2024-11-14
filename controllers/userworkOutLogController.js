@@ -228,7 +228,78 @@ const startWorkOut = async (req, res) => {
   }
 };
 
+//Replacement of startWorkout API
+const getWorkoutData = async (req, res) => {
+  try {
+    const { workOutId } = req.params;
+    const workout = await findWorkOutById(workOutId, res);
 
+    if (!workout?.workout) {
+      return res.status(404).json({ msg: "Workout not found" });
+    }
+
+    const measurementType = workout?.workout?.stations?.[0]?.exercises?.[0]?.sets?.[0]?.measurementType || "Time";
+
+    const formatExercises = (exercises) => {
+      return exercises.map((exercise) => {
+        const levels = [...new Set(exercise.sets.map((set) =>
+          `${set.level} (${set.exerciseName || ""})`
+        ))];
+
+        const filteredSets = exercise.sets.filter(
+          (set) => set.level === exercise.selectedLevel
+        );
+
+        return {
+          exerciseName: exercise.exerciseName,
+          level: `${exercise.selectedLevel} (${exercise.exerciseName || ""})`,
+          levels: levels,
+          levelsLength: levels.length,
+          sets: filteredSets.map((set) => {
+            const setDetails = {
+              exerciseName: exercise.exerciseName,
+              measurementType: set.measurementType,
+              previous: set.previous || 0,
+              lbs: set.lbs || 0,
+              level: `${set.level}`,
+            };
+            if (set.measurementType === "Reps") {
+              setDetails.reps = set.value || 0;
+            } else if (set.measurementType === "Time") {
+              setDetails.time = set.value || 0;
+            } else if (set.measurementType === "Distance") {
+              setDetails.distance = set.value || 0;
+            }
+            return setDetails;
+          }),
+        };
+      });
+    };
+
+    const formattedStations = workout.workout.stations.map((station) => ({
+      stationNumber: station.stationNumber,
+      completed: false,
+      exercises: formatExercises(station.exercises),
+    }));
+
+    const workoutData = {
+      workout: {
+        stations: formattedStations,
+        weekNumber: workout.weekNumber,
+        programId: workout.programId,
+        workOutId: workout.workout._id,
+        programTitle: workout.programTitle,
+        completed: false,
+        measurementType,
+      },
+    };
+
+    res.status(200).json(workoutData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error", error });
+  }
+};
 
 /*============  End of start workout  =============*/
 
@@ -271,10 +342,10 @@ const finishWorkOut = async (req, res) => {
       return res.status(404).json({ msg: "Workout not found" });
     }
 
-    // Verify the number of stations matches
-    if (stations.length !== fetchedWorkOut.stations.length) {
-      return res.status(400).json({ msg: "Number of stations are not the same" });
-    }
+    // // Verify the number of stations matches
+    // if (stations.length !== fetchedWorkOut.stations.length) {
+    //   return res.status(400).json({ msg: "Number of stations are not the same" });
+    // }
 
     
     // Prepare workout log with all required fields
@@ -1006,4 +1077,5 @@ module.exports = {
   getExercisesNames,
   searchExercise,
   getDataForSpecificLevel,
+  getWorkoutData,
 };
