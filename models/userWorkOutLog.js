@@ -53,6 +53,10 @@ const setSchema = new mongoose.Schema({
       return this.measurementType === "Time";
     },
   },
+  exerciseName: {
+    type: String,
+    default: "",
+  },
   distance: {
     type: Number,
     min: [0, "Distance cannot be negative"],

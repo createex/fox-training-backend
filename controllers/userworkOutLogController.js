@@ -913,127 +913,128 @@ const getDataForSpecificLevel = async (req, res) => {
 
 const getSpecificLevelData = async (req, res) => {
   try {
+    // Step 1: Get userId from token and params/query data
+    const userId = req.user._id;
     const { workoutId } = req.params;
     const { level, stationNumber, exerciseName } = req.query;
-    const userId = req.user._id;
 
-    // Validate query parameters
-    if (!level || !exerciseName || !stationNumber) {
-      return res.status(400).json({
-        error: "Missing required parameters: level, exerciseName, and stationNumber are required."
-      });
-    }
-
-    // Helper function to find exercise and filter sets by level
-    const findExerciseLevel = (workoutData) => {
-      const station = workoutData.stations.find(station => station.stationNumber === parseInt(stationNumber));
-      if (!station) return null;
-
-      const exercise = station.exercises.find(exercise => exercise.exerciseName === exerciseName);
-      if (!exercise) return null;
-
-      // Filter sets to only include those with the matching level
-      const matchingSets = exercise.sets.filter(set => set.level === level);
-
-      // Check if there are matching sets
-      if (matchingSets.length > 0) {
-        exercise.sets = matchingSets; // Only keep matching sets
-        return { exercise, selectedLevel: matchingSets[0] }; // Return the first matching set for selected level
-      }
-
-      return null;
-    };
-
-    // Check in WorkoutLog first
-    let workoutLog = await WorkOutLog.findOne({ workOutId: workoutId, userId });
-    let result = findExerciseLevel(workoutLog);
-
-    if (workoutLog && result) {
-      // Update selectedLevel using the first matching set's exerciseName
-      result.exercise.selectedLevel = `${level} (${result.selectedLevel.exerciseName})`;
-      await workoutLog.save();
-
-      return res.status(200).json(formatResponse(result.exercise));
-    }
-
-    // If not found in WorkoutLog, check in Program collection
-    const program = await Program.findOne({ "weeks.workouts._id": workoutId });
-    if (!program) {
-      return res.status(404).json({ error: "No matching workout found in either WorkoutLog or Program." });
-    }
-
-    const workout = program.weeks.flatMap(week => week.workouts)
-      .find(workout => workout.stations.some(station => station.stationNumber === parseInt(stationNumber)));
-
-    if (!workout) {
-      return res.status(404).json({ error: `Workout not found for the given parameters.` });
-    }
-
-    // Find exercise and level in the program
-    result = findExerciseLevel(workout);
-    if (!result) {
-      return res.status(404).json({ error: `Level ${level} not found for exercise ${exerciseName}.` });
-    }
-
-    // Update selected level in the new workout log entry
-    result.exercise.selectedLevel = `${level} (${result.selectedLevel.exerciseName})`;
-    
-    let weekNumber = null;
-    for (let i = 0; i < program.weeks.length; i++) {
-      const week = program.weeks[i];
-      const workoutExists = week.workouts.some(
-        (workout) => workout._id.toString() === workoutId
-      );
-      if (workoutExists) {
-        weekNumber = i + 1; // Weeks are typically 1-indexed
-        break;
-      }
-    }
-
-    if (weekNumber === null) {
-      return res.status(404).json({ msg: "Workout not found in specified week" });
-    }
-    
-    workoutLog = {
+    // Step 2: Check if workout exists in WorkoutLog for the user
+    let workoutLog = await WorkOutLog.findOne({
       userId: userId,
-      programId: program._id,
       workOutId: workoutId,
-      weekNumber: weekNumber,
-      stations: workout.stations,
-      numberOfStations: workout.stations.length,
-      completed: true,
-      completedAt: new Date(),
-    };
+    });
 
-    // Save the workout log to the database
-    // await WorkOutLog.create(workoutLog);
+    // Step 3: If not found, check in Program collection
+    if (!workoutLog) {
+      const program = await Program.findOne({
+        "weeks.workouts._id": workoutId,
+      }).lean();
 
-    // return res.status(200).json(formatResponse(result.exercise));
-    return res.status(200).json(formatResponse(workoutLog));
+      if (!program) {
+        return res.status(404).json({ message: "Workout not found in program." });
+      }
 
+      // Step 4: Get complete workout data from program
+      const workout = program.weeks
+        .flatMap((week) => week.workouts)
+        .find((workout) => workout._id.toString() === workoutId);
+
+      const weekNumber = program.weeks.find((week) =>
+        week.workouts.some((w) => w._id.toString() === workoutId)
+      )?.weekNumber || 1;
+
+      // Step 5: Create new workout log document in WorkoutLog collection
+      workoutLog = new WorkOutLog({
+        userId: userId,
+        programId: program._id,
+        workOutId: workoutId,
+        weekNumber: weekNumber,
+        stations: workout.stations.map(station => ({
+          ...station,
+          exercises: station.exercises.map(exercise => ({
+            ...exercise,
+            sets: exercise.sets.map(set => ({
+              ...set,
+              previous: set.previous || 0, // Defaulting to 0 if missing
+              lbs: set.lbs || 0, // Defaulting to 0 if missing
+              distance: set.distance || 0, // Defaulting to 0 if missing
+              exerciseName: set.exerciseName, // Ensure this is not missing
+            })),
+          })),
+        })),
+        numberOfStations: workout.stations.length,
+        completed: true,
+        completedAt: new Date(),
+      });
+
+      await workoutLog.save();
+    }
+
+    // Step 6: Find the specified exercise in the workout log and update selectedLevel
+    const station = workoutLog.stations.find(
+      (stn) => stn.stationNumber === parseInt(stationNumber)
+    );
+    if (!station) {
+      return res.status(404).json({ message: "Station not found in workout log." });
+    }
+
+    const exercise = station.exercises.find(
+      (ex) => ex.exerciseName === exerciseName
+    );
+    if (!exercise) {
+      return res.status(404).json({ message: "Exercise not found in station." });
+    }
+
+    const levelMatchIndex = exercise.sets.findIndex(
+      (set) => set.level === level || set.level.includes(level)
+    );
+
+    // If no match found, return an error
+    if (levelMatchIndex === -1) {
+      return res.status(400).json({ message: "Invalid level provided." });
+    }
+
+    const matchedSet = exercise.sets[levelMatchIndex];
+
+    // Update selectedLevel based on matched set
+    if (matchedSet.exerciseName) {
+      exercise.selectedLevel = `${matchedSet.level} (${matchedSet.exerciseName})`;
+    } else {
+      exercise.selectedLevel = matchedSet.level;
+    }
+
+    // Save the workout log with updated exercise
+    await workoutLog.save();
+
+    // Step 8: Filter sets based on the provided level
+    const levelPattern = /Level \d+/;
+    const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0]; 
+    
+    // Filter sets based on the extracted main level from selectedLevel
+    const filteredSets = exercise.sets.filter(
+      (set) => set.level === selectedLevelMain
+    );
+
+    const levels = [...new Set(exercise.sets.map((set) =>
+      `${set.level} (${exercise.exerciseName})`
+    ))];
+
+    // Step 9: Send the updated exercise with filtered sets in response
+    return res.json({
+        exerciseName: exercise.exerciseName,
+        level: exercise.selectedLevel || "",
+        levels: levels,
+        levelsLength: levels.length,
+        sets: filteredSets
+    });
   } catch (error) {
-    console.error("Error fetching workout details:", error);
-    res.status(500).json({ error: "Internal server error." });
+    console.error("Error handling workout log:", error);
+    return res.status(500).json({ message: "Server error occurred." });
   }
 };
 
-// Helper function to format the response
-const formatResponse = (exercise) => ({
-  exercise: {
-    exerciseName: exercise.exerciseName,
-    levels: exercise.sets ? exercise.sets.map(set => set.level) : [],
-    levelsLength: exercise.sets ? exercise.sets.length : 0,
-    level: exercise.selectedLevel,
-    sets: exercise.sets ? exercise.sets.map(set => ({
-      exerciseName: set.exerciseName,
-      level: set.level,
-      measurementType: set.measurementType,
-      previous: set.previous || 0,
-      lbs: set.lbs || 0,
-      _id: set._id,
-    })) : [],
-  }
-});
+
+
 
 
 /* ========= End of Get Exercises Names  ========= */
