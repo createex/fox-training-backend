@@ -36,16 +36,18 @@ const getTodaysWorkOut = async (req, res) => {
 //Replacement of startWorkout API
 const getWorkoutData = async (req, res) => {
   try {
-    const { workOutId, userId } = req.params;
-    let workoutData;
-    console.log(req.params);
+    const userId = req.user._id;
+    const { workOutId } = req.params;
+    console.log('Started:');
 
-    const workoutLog = await WorkOutLog.findOne({ 
-      workOutId: workOutId, // add mongoose.Types.ObjectId() if needed 
-      userId: userId
+    // Step 2: Check if workout exists in WorkoutLog for the user
+    let workoutLog = await WorkOutLog.findOne({
+      userId: userId,
+      workOutId: workOutId,
     });
         
     console.log('Retrieved WorkoutLog:', workoutLog);
+    let workoutData;
 
     if (workoutLog) {
       // Workout is completed, get data from workoutLog without populating programId
@@ -58,12 +60,22 @@ const getWorkoutData = async (req, res) => {
               const levels = [...new Set(exercise.sets.map((set) =>
                 `${set.level} (${exercise.exerciseName})`
               ))];
+
+              // Apply levelPattern to extract main level from selectedLevel
+              const levelPattern = /Level \d+/;
+              const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0]; 
+
+              // Filter sets based on the extracted main level
+              const filteredSets = exercise.sets.filter(
+                (set) => set.level === selectedLevelMain
+              );
+
               return {
                 exerciseName: exercise.exerciseName,
                 level: exercise.selectedLevel || "",
                 levels: levels,
                 levelsLength: levels.length,
-                sets: exercise.sets.map((set) => {
+                sets: filteredSets.map((set) => {
                   const setDetails = {
                     exerciseName: exercise.exerciseName,
                     measurementType: set.measurementType,
@@ -103,8 +115,13 @@ const getWorkoutData = async (req, res) => {
             `${set.level} (${set.exerciseName || ""})`
           ))];
 
+          // Apply levelPattern to extract main level from selectedLevel
+          const levelPattern = /Level \d+/;
+          const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0]; 
+
+          // Filter sets based on the extracted main level
           const filteredSets = exercise.sets.filter(
-            (set) => set.level === exercise.selectedLevel
+            (set) => set.level === selectedLevelMain
           );
 
           return {
@@ -158,6 +175,7 @@ const getWorkoutData = async (req, res) => {
     res.status(500).json({ msg: "Server error", error });
   }
 };
+
 
 
 /*============  End of start workout  =============*/
