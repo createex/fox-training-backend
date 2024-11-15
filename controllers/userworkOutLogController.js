@@ -38,74 +38,83 @@ const getWorkoutData = async (req, res) => {
   try {
     const userId = req.user._id;
     const { workOutId } = req.params;
-    console.log('Started:');
+    console.log('Started processing workout data for user:', userId, 'and workout ID:', workOutId);
 
     // Step 2: Check if workout exists in WorkoutLog for the user
     let workoutLog = await WorkOutLog.findOne({
       userId: userId,
       workOutId: workOutId,
     });
-        
     console.log('Retrieved WorkoutLog:', workoutLog);
+
     let workoutData;
 
     if (workoutLog) {
-      // Workout is completed, get data from workoutLog without populating programId
+      console.log('Workout found in WorkoutLog, preparing completed workout data.');
+      
       workoutData = {
         workout: {
-          stations: workoutLog.stations.map((station) => ({
-            stationNumber: station.stationNumber,
-            completed: station.completed,
-            exercises: station.exercises.map((exercise) => {
-              const levels = [...new Set(exercise.sets.map((set) =>
-                `${set.level} (${exercise.exerciseName})`
-              ))];
+          stations: workoutLog.stations.map((station) => {
+            console.log(`Processing station ${station.stationNumber}, completed: ${station.completed}`);
+            
+            return {
+              stationNumber: station.stationNumber,
+              completed: station.completed,
+              exercises: station.exercises.map((exercise) => {
+                const levels = [...new Set(exercise.sets.map((set) =>
+                  `${set.level} (${exercise.exerciseName})`
+                ))];
+                console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
 
-              // Apply levelPattern to extract main level from selectedLevel
-              const levelPattern = /Level \d+/;
-              const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0]; 
+                const levelPattern = /Level \d+/;
+                const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
+                console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
 
-              // Filter sets based on the extracted main level
-              const filteredSets = exercise.sets.filter(
-                (set) => set.level === selectedLevelMain
-              );
+                const filteredSets = exercise.sets.filter(
+                  (set) => set.level === selectedLevelMain
+                );
+                console.log(`Filtered sets for ${exercise.exerciseName}:`, filteredSets);
 
-              return {
-                exerciseName: exercise.exerciseName,
-                level: exercise.selectedLevel || "",
-                levels: levels,
-                levelsLength: levels.length,
-                sets: filteredSets.map((set) => {
-                  const setDetails = {
-                    exerciseName: exercise.exerciseName,
-                    measurementType: set.measurementType,
-                    previous: set.previous || 0,
-                    lbs: set.lbs || 0,
-                    level: `${set.level}`,
-                  };
-                  if (set.measurementType === "Reps") {
-                    setDetails.reps = set.reps || 0;
-                  } else if (set.measurementType === "Time") {
-                    setDetails.time = set.time || 0;
-                  } else if (set.measurementType === "Distance") {
-                    setDetails.distance = set.distance || 0;
-                  }
-                  return setDetails;
-                }),
-              };
-            }),
-          })),
+                return {
+                  exerciseName: exercise.exerciseName,
+                  level: exercise.selectedLevel || "",
+                  levels: levels,
+                  levelsLength: levels.length,
+                  sets: filteredSets.map((set) => {
+                    const setDetails = {
+                      exerciseName: exercise.exerciseName,
+                      measurementType: set.measurementType,
+                      previous: set.previous || 0,
+                      lbs: set.lbs || 0,
+                      level: `${set.level}`,
+                    };
+                    if (set.measurementType === "Reps") {
+                      setDetails.reps = set.reps || 0;
+                    } else if (set.measurementType === "Time") {
+                      setDetails.time = set.time || 0;
+                    } else if (set.measurementType === "Distance") {
+                      setDetails.distance = set.distance || 0;
+                    }
+                    console.log(`Set details for ${exercise.exerciseName}:`, setDetails);
+                    return setDetails;
+                  }),
+                };
+              }),
+            };
+          }),
           weekNumber: workoutLog.weekNumber,
-          programId: workoutLog.programId, // No population here
+          programId: workoutLog.programId,
           workOutId: workoutLog.workOutId,
           completed: true,
           measurementType: workoutLog.stations[0].exercises[0].sets[0].measurementType || "Time",
         },
       };
     } else {
-      // Workout is not completed, retrieve data from Program collection
+      console.log('Workout not found in WorkoutLog, retrieving from Program.');
+      
       const workout = await findWorkOutById(workOutId, res);
       if (!workout?.workout) {
+        console.log('Workout not found in Program collection.');
         return res.status(404).json({ msg: "Workout not found" });
       }
 
@@ -114,15 +123,16 @@ const getWorkoutData = async (req, res) => {
           const levels = [...new Set(exercise.sets.map((set) =>
             `${set.level} (${set.exerciseName || ""})`
           ))];
+          console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
 
-          // Apply levelPattern to extract main level from selectedLevel
           const levelPattern = /Level \d+/;
-          const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0]; 
+          const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
+          console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
 
-          // Filter sets based on the extracted main level
           const filteredSets = exercise.sets.filter(
             (set) => set.level === selectedLevelMain
           );
+          console.log(`Filtered sets for ${exercise.exerciseName}:`, filteredSets);
 
           return {
             exerciseName: exercise.exerciseName,
@@ -144,17 +154,22 @@ const getWorkoutData = async (req, res) => {
               } else if (set.measurementType === "Distance") {
                 setDetails.distance = set.value || 0;
               }
+              console.log(`Set details for ${exercise.exerciseName}:`, setDetails);
               return setDetails;
             }),
           };
         });
       };
 
-      const formattedStations = workout.workout.stations.map((station) => ({
-        stationNumber: station.stationNumber,
-        completed: false,
-        exercises: formatExercises(station.exercises),
-      }));
+      const formattedStations = workout.workout.stations.map((station) => {
+        console.log(`Processing station ${station.stationNumber}, not completed.`);
+        
+        return {
+          stationNumber: station.stationNumber,
+          completed: false,
+          exercises: formatExercises(station.exercises),
+        };
+      });
 
       workoutData = {
         workout: {
@@ -169,9 +184,10 @@ const getWorkoutData = async (req, res) => {
       };
     }
 
+    console.log('Final workout data to be sent in response:', workoutData);
     res.status(200).json(workoutData);
   } catch (error) {
-    console.error(error);
+    console.error('Error in getWorkoutData:', error);
     res.status(500).json({ msg: "Server error", error });
   }
 };
@@ -882,7 +898,11 @@ const getDataForSpecificLevel = async (req, res) => {
           level: set.level + (set.exerciseName ? ` (${set.exerciseName})` : ""), // Add exerciseName if it exists
           measurementType: set.measurementType,
           previous: set.previous || 0,
-          lbs: set.lbs || 0,
+          lbs: set.lbs || 0, // Defaulting to 0 if missing
+          distance: set.distance || 0, // Defaulting to 0 if missing
+          time: set.time || 0, // Defaulting to 0 if missing
+          reps: set.reps || 0, // Defaulting to 0 if missing
+          distance: set.distance || 0, // Defaulting to 0 if missing
           _id: set._id,
         };
 
@@ -975,6 +995,9 @@ const getSpecificLevelData = async (req, res) => {
               ...set,
               previous: set.previous || 0, // Defaulting to 0 if missing
               lbs: set.lbs || 0, // Defaulting to 0 if missing
+              distance: set.distance || 0, // Defaulting to 0 if missing
+              time: set.time || 0, // Defaulting to 0 if missing
+              reps: set.reps || 0, // Defaulting to 0 if missing
               distance: set.distance || 0, // Defaulting to 0 if missing
               exerciseName: set.exerciseName, // Ensure this is not missing
             })),
