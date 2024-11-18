@@ -66,6 +66,13 @@ const getWorkoutData = async (req, res) => {
                 ))];
                 console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
 
+                if (!exercise.selectedLevel || exercise.selectedLevel.trim() === "") {
+                  console.log(
+                    `No selected level provided for ${exercise.exerciseName}. Assigning first available level.`
+                  );
+                  exercise.selectedLevel = exercise.sets[0]?.level || "";
+                }
+            
                 const levelPattern = /Level \d+/;
                 const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
                 console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
@@ -178,9 +185,15 @@ const formatExercises = (exercises) => {
         // Add specific fields based on measurement type
         if (set.measurementType === "Reps") {
           setDetails.reps = set.value || 0;
+          setDetails.time = 0;
+          setDetails.distance = 0;
         } else if (set.measurementType === "Time") {
+          setDetails.reps = 0;
           setDetails.time = set.value || 0;
+          setDetails.distance = 0;
         } else if (set.measurementType === "Distance") {
+          setDetails.reps = 0;
+          setDetails.time = 0;
           setDetails.distance = set.value || 0;
         }
 
