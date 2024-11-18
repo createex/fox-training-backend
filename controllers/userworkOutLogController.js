@@ -45,7 +45,7 @@ const getWorkoutData = async (req, res) => {
       return exercises.map((exercise) => {
         console.log(`Processing exercise: ${exercise.exerciseName}`);
 
-        const levels = [...new Set(exercise.sets.map((set) => `${set.level} (${exercise.exerciseName || ""})`))];
+        const levels = [...new Set(exercise.sets.map((set) => `${set.level} (${set.exerciseName || ""})`))];
         exercise.selectedLevel ||= levels[0] || "";
 
         const levelPattern = /Level \d+/;
@@ -974,9 +974,12 @@ const getSpecificLevelData = async (req, res) => {
       workOutId: workoutId,
     });
 
-    // Step 3: If not found, check in Program collection
+    let program = null;
+    let workout = null;
+
+    // Step 3: If workoutLog does not exist, fetch data from Program collection
     if (!workoutLog) {
-      const program = await Program.findOne({
+      program = await Program.findOne({
         "weeks.workouts._id": workoutId,
       }).lean();
 
@@ -984,8 +987,7 @@ const getSpecificLevelData = async (req, res) => {
         return res.status(404).json({ message: "Workout not found in program." });
       }
 
-      // Step 4: Get complete workout data from program
-      const workout = program.weeks
+      workout = program.weeks
         .flatMap((week) => week.workouts)
         .find((workout) => workout._id.toString() === workoutId);
 
@@ -993,7 +995,6 @@ const getSpecificLevelData = async (req, res) => {
         week.workouts.some((w) => w._id.toString() === workoutId)
       )?.weekNumber || 1;
 
-      // Step 5: Create new workout log document in WorkoutLog collection
       workoutLog = new WorkOutLog({
         userId: userId,
         programId: program._id,
@@ -1005,13 +1006,12 @@ const getSpecificLevelData = async (req, res) => {
             ...exercise,
             sets: exercise.sets.map(set => ({
               ...set,
-              previous: set.previous || 0, // Defaulting to 0 if missing
-              lbs: set.lbs || 0, // Defaulting to 0 if missing
-              distance: set.distance || 0, // Defaulting to 0 if missing
-              time: set.time || 0, // Defaulting to 0 if missing
-              reps: set.reps || 0, // Defaulting to 0 if missing
-              distance: set.distance || 0, // Defaulting to 0 if missing
-              exerciseName: set.exerciseName, // Ensure this is not missing
+              previous: set.previous || 0,
+              lbs: set.lbs || 0,
+              time: set.time || 0,
+              reps: set.reps || 0,
+              distance: set.distance || 0,
+              exerciseName: set.exerciseName,
             })),
           })),
         })),
@@ -1023,7 +1023,7 @@ const getSpecificLevelData = async (req, res) => {
       await workoutLog.save();
     }
 
-    // Step 6: Find the specified exercise in the workout log and update selectedLevel
+    // Step 4: Find the specified exercise in the workout log
     const station = workoutLog.stations.find(
       (stn) => stn.stationNumber === parseInt(stationNumber)
     );
@@ -1038,53 +1038,73 @@ const getSpecificLevelData = async (req, res) => {
       return res.status(404).json({ message: "Exercise not found in station." });
     }
 
-    const levelMatchIndex = exercise.sets.findIndex(
-      (set) => set.level === level || set.level.includes(level)
-    );
+    const levels = [...new Set(exercise.sets.map((set) => `${set.level} (${set.exerciseName || ""})`))];
 
-    // If no match found, return an error
-    if (levelMatchIndex === -1) {
-      return res.status(400).json({ message: "Invalid level provided." });
+    // Step 5: Match the level in the provided levels
+    const matchedLevel = exercise.sets.find(set => set.level.startsWith(level));
+
+    if (!matchedLevel) {
+      return res.status(400).json({ message: "Provided level does not match any existing levels." });
     }
 
-    const matchedSet = exercise.sets[levelMatchIndex];
-
-    // Update selectedLevel based on matched set
-    if (matchedSet.exerciseName) {
-      exercise.selectedLevel = `${matchedSet.level} (${matchedSet.exerciseName})`;
-    } else {
-      exercise.selectedLevel = matchedSet.level;
-    }
-
-    // Save the workout log with updated exercise
-    await workoutLog.save();
-
-    // Step 8: Filter sets based on the provided level
-    const levelPattern = /Level \d+/;
-    const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0]; 
+    // Step 6: Update selectedLevel in the workout log or program
+    const newLevel = `${matchedLevel.level} (${matchedLevel.exerciseName || ""})`;
     
-    // Filter sets based on the extracted main level from selectedLevel
-    const filteredSets = exercise.sets.filter(
-      (set) => set.level === selectedLevelMain
-    );
+    if (workoutLog.completed) {
+      // If workout is completed, update the workout log
+      exercise.selectedLevel = newLevel;
+      await workoutLog.save();
+    } else {
+      // If workout is not completed, update the program document
+      const programWorkouts = program.weeks
+        .flatMap((week) => week.workouts)
+        .find((workout) => workout._id.toString() === workoutId);
 
-    const levels = [...new Set(exercise.sets.map((set) =>
-      `${set.level} (${exercise.exerciseName})`
-    ))];
+      const stationInProgram = programWorkouts.stations.find(
+        (stn) => stn.stationNumber === parseInt(stationNumber)
+      );
 
-    // Step 9: Send the updated exercise with filtered sets in response
+      const exerciseInProgram = stationInProgram.exercises.find(
+        (ex) => ex.exerciseName === exerciseName
+      );
+
+      exerciseInProgram.selectedLevel = newLevel;
+      await Program.updateOne(
+        { _id: program._id, "weeks.workouts._id": workoutId },
+        { $set: { "weeks.$.workouts.$[workout].stations.$[station].exercises.$[exercise].selectedLevel": newLevel } },
+        {
+          arrayFilters: [
+            { "workout._id": workoutId },
+            { "station.stationNumber": parseInt(stationNumber) },
+            { "exercise.exerciseName": exerciseName }
+          ]
+        }
+      );
+    }
+
+    // Step 7: Return the response
     return res.json({
-        exerciseName: exercise.exerciseName,
-        level: exercise.selectedLevel || "",
-        levels: levels,
-        levelsLength: levels.length,
-        sets: filteredSets
+      exerciseName: exercise.exerciseName,
+      level: exercise.selectedLevel,
+      levels: levels,
+      levelsLength: exercise.sets.length,
+      sets: exercise.sets.filter(set => set.level === matchedLevel.level).map((set) => ({
+        level: set.level,
+        measurementType: set.measurementType,
+        previous: set.previous,
+        lbs: set.lbs,
+        reps: set.reps,
+        exerciseName: set.exerciseName,
+      })),
     });
   } catch (error) {
     console.error("Error handling workout log:", error);
     return res.status(500).json({ message: "Server error occurred." });
   }
 };
+
+
+
 
 /* ========= End of Get Exercises Names  ========= */
 module.exports = {
