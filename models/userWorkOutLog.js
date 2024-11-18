@@ -126,6 +126,10 @@ const workoutLogSchema = new mongoose.Schema({
     ref: "Program",
     required: true,
   },
+  programTitle: {
+    type: String,
+    default: "",
+  },
   workOutId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
