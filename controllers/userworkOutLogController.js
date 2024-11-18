@@ -16,7 +16,7 @@ const UserAcheivements = require("../models/userAcheivements");
 const ExercisesNames = require("../models/exerciesNames");
 
 /*=============================================
-=                   Get Todays Workout                   =
+=                   Get Todays Workout        =
 =============================================*/
 const getTodaysWorkOut = async (req, res) => {
   try {
@@ -110,79 +110,113 @@ const getWorkoutData = async (req, res) => {
         },
       };
     } else {
-      console.log('Workout not found in WorkoutLog, retrieving from Program.');
-      
-      const workout = await findWorkOutById(workOutId, res);
-      if (!workout?.workout) {
-        console.log('Workout not found in Program collection.');
-        return res.status(404).json({ msg: "Workout not found" });
-      }
+      console.log("Workout not found in WorkoutLog, retrieving from Program.");
 
-      const formatExercises = (exercises) => {
-        return exercises.map((exercise) => {
-          const levels = [...new Set(exercise.sets.map((set) =>
-            `${set.level} (${set.exerciseName || ""})`
-          ))];
-          console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
+const workout = await findWorkOutById(workOutId, res);
+if (!workout?.workout) {
+  console.log("Workout not found in Program collection.");
+  return res.status(404).json({ msg: "Workout not found" });
+}
 
-          const levelPattern = /Level \d+/;
-          const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
-          console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
+// Log program and workout IDs
+console.log(`Program ID: ${workout.programId}`);
+console.log(`Workout ID: ${workout.workout._id}`);
 
-          const filteredSets = exercise.sets.filter(
-            (set) => set.level === selectedLevelMain
-          );
-          console.log(`Filtered sets for ${exercise.exerciseName}:`, filteredSets);
+// Step 3: Helper function to format exercises
+const formatExercises = (exercises) => {
+  return exercises.map((exercise) => {
+    console.log(`Processing exercise: ${exercise.exerciseName}`);
 
-          return {
-            exerciseName: exercise.exerciseName,
-            level: exercise.selectedLevel || "",
-            levels: levels,
-            levelsLength: levels.length,
-            sets: filteredSets.map((set) => {
-              const setDetails = {
-                exerciseName: exercise.exerciseName,
-                measurementType: set.measurementType,
-                previous: set.previous || 0,
-                lbs: set.lbs || 0,
-                level: `${set.level}`,
-              };
-              if (set.measurementType === "Reps") {
-                setDetails.reps = set.value || 0;
-              } else if (set.measurementType === "Time") {
-                setDetails.time = set.value || 0;
-              } else if (set.measurementType === "Distance") {
-                setDetails.distance = set.value || 0;
-              }
-              console.log(`Set details for ${exercise.exerciseName}:`, setDetails);
-              return setDetails;
-            }),
-          };
-        });
-      };
+    // Log all sets before filtering
+    console.log(`All sets for ${exercise.exerciseName}:`, JSON.stringify(exercise.sets, null, 2));
 
-      const formattedStations = workout.workout.stations.map((station) => {
-        console.log(`Processing station ${station.stationNumber}, not completed.`);
-        
-        return {
-          stationNumber: station.stationNumber,
-          completed: false,
-          exercises: formatExercises(station.exercises),
-        };
-      });
+    // Extract unique levels
+    const levels = [...new Set(exercise.sets.map((set) => `${set.level} (${set.exerciseName || ""})`))];
+    console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
 
-      workoutData = {
-        workout: {
-          stations: formattedStations,
-          weekNumber: workout.weekNumber,
-          programId: workout.programId,
-          workOutId: workout.workout._id,
-          programTitle: workout.programTitle,
-          completed: false,
-          measurementType: workout.workout.stations[0].exercises[0].sets[0].measurementType || "Time",
-        },
-      };
+     if (!exercise.selectedLevel || exercise.selectedLevel.trim() === "") {
+      console.log(
+        `No selected level provided for ${exercise.exerciseName}. Assigning first available level.`
+      );
+      exercise.selectedLevel = exercise.sets[0]?.level || "";
     }
+
+    // Extract main selected level (e.g., "Level 1")
+    const levelPattern = /Level \d+/;
+    const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
+    console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
+
+    // Filter sets based on selected level
+    const filteredSets = exercise.sets.filter(
+      (set) => selectedLevelMain && set.level === selectedLevelMain
+    );
+
+    // Log sets after filtering
+    console.log(`Filtered sets for ${exercise.exerciseName}:`, JSON.stringify(filteredSets, null, 2));
+
+    // Identify which sets were filtered out
+    const filteredOutSets = exercise.sets.filter(
+      (set) => !(selectedLevelMain && set.level === selectedLevelMain)
+    );
+    console.log(`Filtered out sets for ${exercise.exerciseName}:`, JSON.stringify(filteredOutSets, null, 2));
+
+    // Return formatted exercise details
+    return {
+      exerciseName: exercise.exerciseName,
+      level: exercise.selectedLevel || "",
+      levels: levels,
+      levelsLength: levels.length,
+      sets: filteredSets.map((set) => {
+        const setDetails = {
+          exerciseName: exercise.exerciseName,
+          measurementType: set.measurementType,
+          previous: set.previous || 0,
+          lbs: set.lbs || 0,
+          level: `${set.level}`,
+        };
+
+        // Add specific fields based on measurement type
+        if (set.measurementType === "Reps") {
+          setDetails.reps = set.value || 0;
+        } else if (set.measurementType === "Time") {
+          setDetails.time = set.value || 0;
+        } else if (set.measurementType === "Distance") {
+          setDetails.distance = set.value || 0;
+        }
+
+        console.log(`Set details for ${exercise.exerciseName}:`, setDetails);
+        return setDetails;
+      }),
+    };
+  });
+};
+
+// Step 4: Format stations
+const formattedStations = workout.workout.stations.map((station) => {
+  console.log(`Processing station ${station.stationNumber}, not completed.`);
+
+  return {
+    stationNumber: station.stationNumber,
+    completed: false, // Default to not completed
+    exercises: formatExercises(station.exercises),
+  };
+});
+
+// Step 5: Build workout data object
+workoutData = {
+  workout: {
+    stations: formattedStations,
+    weekNumber: workout.weekNumber,
+    programId: workout.programId,
+    workOutId: workout.workout._id,
+    programTitle: workout.programTitle,
+    completed: false, // Default to not completed
+    measurementType:
+      workout.workout.stations[0]?.exercises[0]?.sets[0]?.measurementType || "Time",
+  },
+};
+
+}
 
     console.log('Final workout data to be sent in response:', workoutData);
     res.status(200).json(workoutData);
@@ -191,9 +225,6 @@ const getWorkoutData = async (req, res) => {
     res.status(500).json({ msg: "Server error", error });
   }
 };
-
-
-
 /*============  End of start workout  =============*/
 
 /*=============================================
@@ -1073,10 +1104,6 @@ const getSpecificLevelData = async (req, res) => {
     return res.status(500).json({ message: "Server error occurred." });
   }
 };
-
-
-
-
 
 /* ========= End of Get Exercises Names  ========= */
 module.exports = {
