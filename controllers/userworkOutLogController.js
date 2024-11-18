@@ -111,7 +111,7 @@ const getWorkoutData = async (req, res) => {
           weekNumber: workout.weekNumber,
           programId: workout.programId,
           workOutId: workout.workout._id,
-          programTitle: workout.programTitle || ,
+          programTitle: workout.programTitle,
           completed: false,
           measurementType: workout.workout.stations[0]?.exercises[0]?.sets[0]?.measurementType || "Time",
         },
