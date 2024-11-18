@@ -70,7 +70,7 @@ const getWorkoutData = async (req, res) => {
                   console.log(
                     `No selected level provided for ${exercise.exerciseName}. Assigning first available level.`
                   );
-                  exercise.selectedLevel = exercise.sets[0]?.level || "";
+                  exercise.selectedLevel = levels[0] || "";
                 }
             
                 const levelPattern = /Level \d+/;
@@ -145,7 +145,7 @@ const formatExercises = (exercises) => {
       console.log(
         `No selected level provided for ${exercise.exerciseName}. Assigning first available level.`
       );
-      exercise.selectedLevel = exercise.sets[0]?.level || "";
+      exercise.selectedLevel = levels[0] || "";
     }
 
     // Extract main selected level (e.g., "Level 1")
