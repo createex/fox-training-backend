@@ -519,6 +519,14 @@ const editCompletedWorkout = async (req, res) => {
               .status(400)
               .json({ message: "Level is required for each set." });
           }
+
+          if (set.measurementType === "Time") {
+            set.time = set.reps;
+          } else if (set.measurementType === "Distance") {
+            set.distance = set.reps;
+          } else if (set.measurementType === "Reps") {
+            set.reps = set.reps || 0;
+          }
         });
       }
 
