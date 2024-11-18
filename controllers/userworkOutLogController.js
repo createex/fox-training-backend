@@ -1015,7 +1015,7 @@ const getSpecificLevelData = async (req, res) => {
           })),
         })),
         numberOfStations: workout.stations.length,
-        completed: true,
+        completed: false,
         completedAt: new Date(),
       });
 
