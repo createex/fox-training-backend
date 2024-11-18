@@ -38,77 +38,54 @@ const getWorkoutData = async (req, res) => {
   try {
     const userId = req.user._id;
     const { workOutId } = req.params;
-    console.log('Started processing workout data for user:', userId, 'and workout ID:', workOutId);
+    console.log('Processing workout data for user:', userId, 'and workout ID:', workOutId);
 
-    // Step 2: Check if workout exists in WorkoutLog for the user
-    let workoutLog = await WorkOutLog.findOne({
-      userId: userId,
-      workOutId: workOutId,
-    });
-    console.log('Retrieved WorkoutLog:', workoutLog);
+    // Helper function to process exercises
+    const formatExercises = (exercises) => {
+      return exercises.map((exercise) => {
+        console.log(`Processing exercise: ${exercise.exerciseName}`);
 
+        const levels = [...new Set(exercise.sets.map((set) => `${set.level} (${exercise.exerciseName || ""})`))];
+        exercise.selectedLevel ||= levels[0] || "";
+
+        const levelPattern = /Level \d+/;
+        const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
+        const filteredSets = exercise.sets.filter((set) => set.level === selectedLevelMain);
+
+        return {
+          exerciseName: exercise.exerciseName,
+          level: exercise.selectedLevel,
+          levels,
+          levelsLength: levels.length,
+          sets: filteredSets.map((set) => ({
+            exerciseName: exercise.exerciseName,
+            measurementType: set.measurementType,
+            previous: set.previous || 0,
+            lbs: set.lbs || 0,
+            level: `${set.level}`,
+            reps: set.value || 0,
+          })),
+        };
+      });
+    };
+
+    // Helper function to process stations
+    const formatStations = (stations, isCompleted) => {
+      return stations.map((station) => ({
+        stationNumber: station.stationNumber,
+        completed: isCompleted,
+        exercises: formatExercises(station.exercises),
+      }));
+    };
+
+    // Check for existing WorkoutLog
+    let workoutLog = await WorkOutLog.findOne({ userId, workOutId });
     let workoutData;
-
     if (workoutLog) {
-      console.log('Workout found in WorkoutLog, preparing completed workout data.');
-      
+      console.log('Workout found in WorkoutLog.');
       workoutData = {
         workout: {
-          stations: workoutLog.stations.map((station) => {
-            console.log(`Processing station ${station.stationNumber}, completed: ${station.completed}`);
-            
-            return {
-              stationNumber: station.stationNumber,
-              completed: station.completed,
-              exercises: station.exercises.map((exercise) => {
-                const levels = [...new Set(exercise.sets.map((set) =>
-                  `${set.level} (${exercise.exerciseName})`
-                ))];
-                console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
-
-                if (!exercise.selectedLevel || exercise.selectedLevel.trim() === "") {
-                  console.log(
-                    `No selected level provided for ${exercise.exerciseName}. Assigning first available level.`
-                  );
-                  exercise.selectedLevel = levels[0] || "";
-                }
-            
-                const levelPattern = /Level \d+/;
-                const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
-                console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
-
-                const filteredSets = exercise.sets.filter(
-                  (set) => set.level === selectedLevelMain
-                );
-                console.log(`Filtered sets for ${exercise.exerciseName}:`, filteredSets);
-
-                return {
-                  exerciseName: exercise.exerciseName,
-                  level: exercise.selectedLevel || "",
-                  levels: levels,
-                  levelsLength: levels.length,
-                  sets: filteredSets.map((set) => {
-                    const setDetails = {
-                      exerciseName: exercise.exerciseName,
-                      measurementType: set.measurementType,
-                      previous: set.previous || 0,
-                      lbs: set.lbs || 0,
-                      level: `${set.level}`,
-                    };
-                    if (set.measurementType === "Reps") {
-                      setDetails.reps = set.reps || 0;
-                    } else if (set.measurementType === "Time") {
-                      setDetails.time = set.time || 0;
-                    } else if (set.measurementType === "Distance") {
-                      setDetails.distance = set.distance || 0;
-                    }
-                    console.log(`Set details for ${exercise.exerciseName}:`, setDetails);
-                    return setDetails;
-                  }),
-                };
-              }),
-            };
-          }),
+          stations: formatStations(workoutLog.stations, true),
           weekNumber: workoutLog.weekNumber,
           programId: workoutLog.programId,
           workOutId: workoutLog.workOutId,
@@ -116,128 +93,36 @@ const getWorkoutData = async (req, res) => {
           measurementType: workoutLog.stations[0].exercises[0].sets[0].measurementType || "Time",
         },
       };
-    } else {
-      console.log("Workout not found in WorkoutLog, retrieving from Program.");
-
-const workout = await findWorkOutById(workOutId, res);
-if (!workout?.workout) {
-  console.log("Workout not found in Program collection.");
-  return res.status(404).json({ msg: "Workout not found" });
-}
-
-// Log program and workout IDs
-console.log(`Program ID: ${workout.programId}`);
-console.log(`Workout ID: ${workout.workout._id}`);
-
-// Step 3: Helper function to format exercises
-const formatExercises = (exercises) => {
-  return exercises.map((exercise) => {
-    console.log(`Processing exercise: ${exercise.exerciseName}`);
-
-    // Log all sets before filtering
-    console.log(`All sets for ${exercise.exerciseName}:`, JSON.stringify(exercise.sets, null, 2));
-
-    // Extract unique levels
-    const levels = [...new Set(exercise.sets.map((set) => `${set.level} (${set.exerciseName || ""})`))];
-    console.log(`Exercise ${exercise.exerciseName} levels:`, levels);
-
-     if (!exercise.selectedLevel || exercise.selectedLevel.trim() === "") {
-      console.log(
-        `No selected level provided for ${exercise.exerciseName}. Assigning first available level.`
-      );
-      exercise.selectedLevel = levels[0] || "";
+      return res.status(200).json(workoutData);
     }
-
-    // Extract main selected level (e.g., "Level 1")
-    const levelPattern = /Level \d+/;
-    const selectedLevelMain = exercise.selectedLevel.match(levelPattern)?.[0];
-    console.log(`Selected level (main) for ${exercise.exerciseName}:`, selectedLevelMain);
-
-    // Filter sets based on selected level
-    const filteredSets = exercise.sets.filter(
-      (set) => selectedLevelMain && set.level === selectedLevelMain
-    );
-
-    // Log sets after filtering
-    console.log(`Filtered sets for ${exercise.exerciseName}:`, JSON.stringify(filteredSets, null, 2));
-
-    // Identify which sets were filtered out
-    const filteredOutSets = exercise.sets.filter(
-      (set) => !(selectedLevelMain && set.level === selectedLevelMain)
-    );
-    console.log(`Filtered out sets for ${exercise.exerciseName}:`, JSON.stringify(filteredOutSets, null, 2));
-
-    // Return formatted exercise details
-    return {
-      exerciseName: exercise.exerciseName,
-      level: exercise.selectedLevel || "",
-      levels: levels,
-      levelsLength: levels.length,
-      sets: filteredSets.map((set) => {
-        const setDetails = {
-          exerciseName: exercise.exerciseName,
-          measurementType: set.measurementType,
-          previous: set.previous || 0,
-          lbs: set.lbs || 0,
-          level: `${set.level}`,
-        };
-
-        // Add specific fields based on measurement type
-        if (set.measurementType === "Reps") {
-          setDetails.reps = set.value || 0;
-          setDetails.time = 0;
-          setDetails.distance = 0;
-        } else if (set.measurementType === "Time") {
-          setDetails.reps = 0;
-          setDetails.time = set.value || 0;
-          setDetails.distance = 0;
-        } else if (set.measurementType === "Distance") {
-          setDetails.reps = 0;
-          setDetails.time = 0;
-          setDetails.distance = set.value || 0;
-        }
-
-        console.log(`Set details for ${exercise.exerciseName}:`, setDetails);
-        return setDetails;
-      }),
-    };
-  });
-};
-
-// Step 4: Format stations
-const formattedStations = workout.workout.stations.map((station) => {
-  console.log(`Processing station ${station.stationNumber}, not completed.`);
-
-  return {
-    stationNumber: station.stationNumber,
-    completed: false, // Default to not completed
-    exercises: formatExercises(station.exercises),
-  };
-});
-
-// Step 5: Build workout data object
-workoutData = {
-  workout: {
-    stations: formattedStations,
-    weekNumber: workout.weekNumber,
-    programId: workout.programId,
-    workOutId: workout.workout._id,
-    programTitle: workout.programTitle,
-    completed: false, // Default to not completed
-    measurementType:
-      workout.workout.stations[0]?.exercises[0]?.sets[0]?.measurementType || "Time",
-  },
-};
-
-}
-
-    console.log('Final workout data to be sent in response:', workoutData);
-    res.status(200).json(workoutData);
+    else
+    {
+      console.log('Workout not found in WorkoutLog, retrieving from Program.');
+      const workout = await findWorkOutById(workOutId, res);
+      if (!workout?.workout) {
+        return res.status(404).json({ msg: "Workout not found" });
+      }
+  
+      const formattedStations = formatStations(workout.workout.stations, false);
+      workoutData = {
+        workout: {
+          stations: formattedStations,
+          weekNumber: workout.weekNumber,
+          programId: workout.programId,
+          workOutId: workout.workout._id,
+          programTitle: workout.programTitle,
+          completed: false,
+          measurementType: workout.workout.stations[0]?.exercises[0]?.sets[0]?.measurementType || "Time",
+        },
+      };
+      res.status(200).json(workoutData);
+    }
   } catch (error) {
     console.error('Error in getWorkoutData:', error);
     res.status(500).json({ msg: "Server error", error });
   }
 };
+
 /*============  End of start workout  =============*/
 
 /*=============================================
