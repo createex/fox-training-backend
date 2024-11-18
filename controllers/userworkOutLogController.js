@@ -218,6 +218,7 @@ const finishWorkOut = async (req, res) => {
       userId,
       workOutId,
       programId: fetchedWorkOut.programId,
+      programTitle: fetchedWorkOut.programTitle,
       weekNumber: fetchedWorkOut.weekNumber,
       numberOfStations: fetchedWorkOut.workout.numberOfStations,
       stations,
