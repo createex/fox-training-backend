@@ -88,6 +88,7 @@ const getWorkoutData = async (req, res) => {
           stations: formatStations(workoutLog.stations, true),
           weekNumber: workoutLog.weekNumber,
           programId: workoutLog.programId,
+          programTitle: workoutLog.programTitle,
           workOutId: workoutLog.workOutId,
           completed: true,
           measurementType: workoutLog.stations[0].exercises[0].sets[0].measurementType || "Time",
