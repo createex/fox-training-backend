@@ -146,13 +146,15 @@ const finishWorkOut = async (req, res) => {
     if (alreadyFinished) {
       return res.status(400).json({ msg: "Workout Already Finished" });
     }
-    
 
     // Fetch workout by ID
     const fetchedWorkOut = await findWorkOutById(workOutId, res);
     if (!fetchedWorkOut) {
       return res.status(404).json({ msg: "Workout not found" });
     }
+
+    // Ensure fetched workout has the necessary structure (stations & exercises)
+    const workoutExercises = fetchedWorkOut.workout.stations.flatMap(station => station.exercises);
 
     // Check if stations length are the same
     if (stations.length !== fetchedWorkOut.workout.stations.length) {
@@ -173,6 +175,20 @@ const finishWorkOut = async (req, res) => {
           return res
             .status(400)
             .json({ message: "Exercise name is required for each exercise." });
+        }
+
+        // Find the matching exercise in the fetched workout
+        const matchedExercise = workoutExercises.find(
+          (fetchedExercise) => fetchedExercise.exerciseName === exercise.exerciseName
+        );
+
+        if (matchedExercise) {
+          // Assign the levels from the matched exercise in the fetched workout
+          exercise.levels = matchedExercise.levels;
+        } else {
+          return res
+            .status(400)
+            .json({ message: `Exercise ${exercise.exerciseName} not found in the fetched workout.` });
         }
 
         // Validate if sets exist
@@ -205,6 +221,7 @@ const finishWorkOut = async (req, res) => {
           } else if (set.measurementType === "Distance") {
             set.distance = set.reps;
           }
+          set.value = set.reps;
         });
       }
 
@@ -256,6 +273,7 @@ const finishWorkOut = async (req, res) => {
     res.status(500).json({ msg: "Failed to finish workout", error: error });
   }
 };
+
 
 
 /*============  End of finsih workout  =============*/
