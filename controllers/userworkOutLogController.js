@@ -201,11 +201,10 @@ const finishWorkOut = async (req, res) => {
               .json({ message: "Level is required for each set." });
           }
           if (set.measurementType === "Time") {
-            set.time = set.value;
+            set.time = set.reps;
           } else if (set.measurementType === "Distance") {
-            set.distance = set.value;
+            set.distance = set.reps;
           }
-          set.reps = set.value || 0;
         });
       }
 
