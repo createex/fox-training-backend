@@ -46,6 +46,13 @@ const setSchema = new mongoose.Schema({
       return this.measurementType === "Reps";
     },
   },
+  value: {
+    type: Number,
+    min: [0, "Reps cannot be negative"],
+    required: function () {
+      return this.measurementType === "Reps";
+    },
+  },
   time: {
     type: Number,
     min: [0, "TIme cannot be negative"],

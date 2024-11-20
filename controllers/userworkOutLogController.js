@@ -58,7 +58,7 @@ const getWorkoutData = async (req, res) => {
           levels,
           levelsLength: levels.length,
           sets: exercise.sets.map((set) => ({
-            exerciseName: exercise.exerciseName,
+            exerciseName: set.exerciseName,
             measurementType: set.measurementType,
             previous: set.previous || 0,
             lbs: set.lbs || 0,
