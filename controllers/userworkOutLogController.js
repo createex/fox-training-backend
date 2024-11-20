@@ -528,21 +528,18 @@ const editCompletedWorkout = async (req, res) => {
           });
         }
 
-        // Ensure level is provided for each set
         exercise.sets.forEach((set) => {
           if (!set.level) {
             return res
               .status(400)
               .json({ message: "Level is required for each set." });
           }
-
           if (set.measurementType === "Time") {
             set.time = set.reps;
           } else if (set.measurementType === "Distance") {
             set.distance = set.reps;
-          } else if (set.measurementType === "Reps") {
-            set.reps = set.reps || 0;
           }
+          set.value = set.reps;
         });
       }
 
